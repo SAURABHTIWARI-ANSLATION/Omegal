@@ -1,16 +1,17 @@
 import { cn } from "../../utils/helpers.js";
 
 const variants = {
-  default: "border-white/12 bg-white/8 text-slate-200",
-  success: "border-emerald-400/25 bg-emerald-400/12 text-emerald-200",
-  warning: "border-amber-400/25 bg-amber-400/12 text-amber-200",
-  error: "border-rose-400/25 bg-rose-400/12 text-rose-200",
-  info: "border-cyan-400/25 bg-cyan-400/12 text-cyan-200",
+  default: "border-slate-200 bg-slate-100 text-slate-700",
+  success: "border-teal-200 bg-teal-50 text-teal-700",
+  warning: "border-amber-200 bg-amber-50 text-amber-700",
+  error: "border-rose-200 bg-rose-50 text-rose-700",
+  info: "border-indigo-200 bg-indigo-50 text-indigo-700",
+  dark: "border-slate-700 bg-slate-900 text-slate-100",
 };
 
 export default function Badge({ variant = "default", className, children }) {
   return (
-    <span className={cn("inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold", variants[variant], className)}>
+    <span className={cn("inline-flex items-center gap-2 rounded-md border px-2.5 py-1 text-xs font-semibold", variants[variant], className)}>
       {children}
     </span>
   );

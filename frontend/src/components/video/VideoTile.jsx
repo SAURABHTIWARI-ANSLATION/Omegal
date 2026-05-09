@@ -11,16 +11,18 @@ export default function VideoTile({ stream, label, muted = false, local = false,
   }, [stream]);
 
   return (
-    <div className={cn("relative isolate min-h-[18rem] overflow-hidden rounded-[2rem] border border-white/10 bg-slate-900", className)}>
+    <div className={cn("relative isolate min-h-[18rem] overflow-hidden rounded-lg border border-white/10 bg-slate-950", className)}>
       {stream ? (
         <video ref={videoRef} autoPlay playsInline muted={muted} className="h-full w-full object-cover" />
       ) : (
-        <div className="flex h-full min-h-[18rem] flex-col items-center justify-center bg-[radial-gradient(circle_at_center,rgba(34,211,238,0.14),transparent_22rem)] text-slate-400">
-          {local ? <Camera className="h-10 w-10" /> : <UserRound className="h-10 w-10" />}
+        <div className="flex h-full min-h-[18rem] flex-col items-center justify-center bg-slate-900 text-slate-400">
+          <span className="flex h-14 w-14 items-center justify-center rounded-lg border border-white/10 bg-white/10">
+            {local ? <Camera className="h-7 w-7" /> : <UserRound className="h-7 w-7" />}
+          </span>
           <p className="mt-4 text-sm">{local ? "Camera preview unavailable" : "Waiting for remote video"}</p>
         </div>
       )}
-      <div className="absolute top-4 left-4 rounded-full border border-white/10 bg-black/45 px-3 py-1 text-xs font-semibold text-white backdrop-blur-xl">
+      <div className="absolute top-4 left-4 rounded-md border border-white/10 bg-black/55 px-3 py-1 text-xs font-semibold text-white backdrop-blur-xl">
         {label}
       </div>
     </div>
