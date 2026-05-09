@@ -7,7 +7,10 @@ const initialSession = {
   queueSize: 0,
   roomId: null,
   partnerId: null,
+  sessionVersion: 0,
   partnerDisconnected: false,
+  isSwitchingPartner: false,
+  waitingMessage: null,
   chatMode: CHAT_MODES.VIDEO,
 };
 
@@ -36,26 +39,32 @@ export const useAppStore = create((set, get) => ({
   setSocketStatus: (socketStatus, socketError = null) => set({ socketStatus, socketError }),
   setQueueSize: (queueSize) => set({ queueSize: Number(queueSize) || 0 }),
   setChatMode: (chatMode) => set({ chatMode }),
-  setSearching: (chatMode = get().chatMode) =>
-    set({
+  setSearching: (chatMode = get().chatMode, options = {}) =>
+    set((state) => ({
       queueStatus: SESSION_STATUS.SEARCHING,
       queueSize: 0,
-      roomId: null,
+      roomId: options.preserveRoom ? state.roomId : null,
       partnerId: null,
+      sessionVersion: Number(options.sessionVersion ?? (options.preserveRoom ? state.sessionVersion : 0)) || 0,
       partnerDisconnected: false,
+      isSwitchingPartner: Boolean(options.switchingPartner),
+      waitingMessage: options.message || null,
       chatMode,
       remoteStream: null,
       rtcConnectionState: "new",
       iceConnectionState: "new",
       lastError: null,
       messages: [],
-    }),
-  setMatched: ({ roomId, partnerId }) =>
+    })),
+  setMatched: ({ roomId, partnerId, sessionVersion }) =>
     set({
       roomId,
       partnerId,
+      sessionVersion: Number(sessionVersion) || 1,
       queueStatus: SESSION_STATUS.MATCHED,
       partnerDisconnected: false,
+      isSwitchingPartner: false,
+      waitingMessage: null,
       queueSize: 0,
       lastError: null,
     }),
@@ -64,6 +73,8 @@ export const useAppStore = create((set, get) => ({
       queueStatus: SESSION_STATUS.PARTNER_DISCONNECTED,
       partnerDisconnected: true,
       partnerId: null,
+      isSwitchingPartner: false,
+      waitingMessage: null,
       remoteStream: null,
       rtcConnectionState: "closed",
       iceConnectionState: "closed",

@@ -19,6 +19,11 @@ export function useWebRTC({ listen = false } = {}) {
   const activeRoomRef = useRef(null);
   const startingRef = useRef(false);
 
+  const getSessionKey = useCallback((state) => {
+    if (!state.roomId || !state.partnerId) return null;
+    return `${state.roomId}:${state.partnerId}:${state.sessionVersion || 0}`;
+  }, []);
+
   const emitSignal = useCallback((event, data) => {
     const state = useAppStore.getState();
     if (!state.roomId) return;
@@ -26,6 +31,7 @@ export function useWebRTC({ listen = false } = {}) {
     socketService.emit(event, {
       roomId: state.roomId,
       partnerId: state.partnerId,
+      sessionVersion: state.sessionVersion,
       ...data,
     });
   }, []);
@@ -72,11 +78,12 @@ export function useWebRTC({ listen = false } = {}) {
 
   const startSession = useCallback(async () => {
     const state = useAppStore.getState();
-    if (state.chatMode !== CHAT_MODES.VIDEO || state.queueStatus !== SESSION_STATUS.MATCHED || !state.roomId) return;
-    if (activeRoomRef.current === state.roomId || startingRef.current) return;
+    const sessionKey = getSessionKey(state);
+    if (state.chatMode !== CHAT_MODES.VIDEO || state.queueStatus !== SESSION_STATUS.MATCHED || !sessionKey) return;
+    if (activeRoomRef.current === sessionKey || startingRef.current) return;
 
     startingRef.current = true;
-    activeRoomRef.current = state.roomId;
+    activeRoomRef.current = sessionKey;
     closePeerConnection();
 
     try {
@@ -96,7 +103,7 @@ export function useWebRTC({ listen = false } = {}) {
     } finally {
       startingRef.current = false;
     }
-  }, [createConnection, emitSignal]);
+  }, [createConnection, emitSignal, getSessionKey]);
 
   const toggleAudio = useCallback(() => {
     const state = useAppStore.getState();
@@ -130,8 +137,12 @@ export function useWebRTC({ listen = false } = {}) {
 
     const unsubscribe = useAppStore.subscribe((state, previousState) => {
       const becameMatched = state.queueStatus === SESSION_STATUS.MATCHED && previousState.queueStatus !== SESSION_STATUS.MATCHED;
-      const roomChanged = state.roomId && state.roomId !== previousState.roomId;
-      if (becameMatched || roomChanged) startSession();
+      const sessionChanged =
+        state.queueStatus === SESSION_STATUS.MATCHED &&
+        (state.roomId !== previousState.roomId ||
+          state.partnerId !== previousState.partnerId ||
+          state.sessionVersion !== previousState.sessionVersion);
+      if (becameMatched || sessionChanged) startSession();
 
       if (state.queueStatus !== SESSION_STATUS.MATCHED && previousState.queueStatus === SESSION_STATUS.MATCHED) {
         activeRoomRef.current = null;
@@ -149,16 +160,25 @@ export function useWebRTC({ listen = false } = {}) {
 
     const socket = socketService.connect();
 
+    const isCurrentSignal = (payload = {}) => {
+      const state = useAppStore.getState();
+      if (state.chatMode !== CHAT_MODES.VIDEO || state.queueStatus !== SESSION_STATUS.MATCHED) return false;
+      if (payload.roomId && payload.roomId !== state.roomId) return false;
+      if (payload.sessionVersion && Number(payload.sessionVersion) !== Number(state.sessionVersion)) return false;
+      if (payload.senderId && payload.senderId !== state.partnerId) return false;
+      return true;
+    };
+
     const handleReceiveOffer = async (payload = {}) => {
       const state = useAppStore.getState();
-      if (state.chatMode !== CHAT_MODES.VIDEO) return;
+      if (!isCurrentSignal(payload)) return;
 
       const offer = getSignalDescription(payload, "offer");
       if (!offer) return;
 
       try {
         const pc = await createConnection();
-        activeRoomRef.current = state.roomId || payload.roomId || activeRoomRef.current;
+        activeRoomRef.current = getSessionKey(state) || activeRoomRef.current;
         const answer = await createAnswerForOffer(pc, offer);
         emitSignal(EVENTS.SEND_ANSWER, { answer });
       } catch (error) {
@@ -168,6 +188,7 @@ export function useWebRTC({ listen = false } = {}) {
     };
 
     const handleReceiveAnswer = async (payload = {}) => {
+      if (!isCurrentSignal(payload)) return;
       const answer = getSignalDescription(payload, "answer");
       if (!answer) return;
 
@@ -179,6 +200,7 @@ export function useWebRTC({ listen = false } = {}) {
     };
 
     const handleReceiveIce = async (payload = {}) => {
+      if (!isCurrentSignal(payload)) return;
       const candidate = payload.candidate || payload.iceCandidate || payload;
       if (!candidate) return;
 
@@ -199,7 +221,7 @@ export function useWebRTC({ listen = false } = {}) {
       socket.off(EVENTS.RECEIVE_ICE_CANDIDATE, handleReceiveIce);
       closePeerConnection();
     };
-  }, [listen, createConnection, emitSignal]);
+  }, [listen, createConnection, emitSignal, getSessionKey]);
 
   return { toggleAudio, toggleVideo, stopLocalMedia };
 }

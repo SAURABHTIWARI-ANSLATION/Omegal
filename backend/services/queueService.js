@@ -132,6 +132,21 @@ class QueueService {
         return [user1, user2];
     }
 
+    takeNextUser({ excludeSocketIds = new Set(), isAvailable = () => true } = {}) {
+        const excluded = excludeSocketIds instanceof Set ? excludeSocketIds : new Set(excludeSocketIds);
+        const index = this.waitingQueue.findIndex((user) => (
+            user?.socketId
+            && !excluded.has(user.socketId)
+            && isAvailable(user.socketId, user)
+        ));
+
+        if (index === -1) return null;
+
+        const [user] = this.waitingQueue.splice(index, 1);
+        this.userStatus.set(user.socketId, 'paired');
+        return user;
+    }
+
     /**
      * Check if user is in queue
      * @param {string} socketId - Socket ID to check
