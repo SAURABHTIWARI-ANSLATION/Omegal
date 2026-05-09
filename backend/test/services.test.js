@@ -47,6 +47,25 @@ test('queue exposes positions and prunes unavailable waiting users', () => {
     assert.equal(queueService.getUserStatus('socket-b'), null);
 });
 
+test('queue can restore a shifted paired user without dropping their turn', () => {
+    queueService.clear();
+
+    queueService.addToQueue('socket-a', { chatMode: 'text' });
+    queueService.addToQueue('socket-b', { chatMode: 'text' });
+    const [stillConnected] = queueService.getPair();
+    const originalJoinedAt = stillConnected.joinedAt;
+
+    assert.equal(queueService.getUserStatus('socket-a'), 'paired');
+
+    const restored = queueService.requeueUser(stillConnected, { front: true });
+
+    assert.equal(restored.socketId, 'socket-a');
+    assert.equal(restored.status, 'waiting');
+    assert.equal(restored.joinedAt, originalJoinedAt);
+    assert.equal(queueService.getUserStatus('socket-a'), 'waiting');
+    assert.equal(queueService.getQueuePosition('socket-a'), 1);
+});
+
 test('room service caps retained room messages and hides room details by default', () => {
     roomService.clear();
     const room = roomService.createRoom('room_test', 'socket-a', 'socket-b', {}, {});

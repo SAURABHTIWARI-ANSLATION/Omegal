@@ -37,6 +37,28 @@ class QueueService {
         return userObject;
     }
 
+    requeueUser(user, { front = false } = {}) {
+        if (!user?.socketId) return null;
+
+        this.removeUser(user.socketId);
+
+        const userObject = {
+            ...user,
+            socketId: user.socketId,
+            joinedAt: user.joinedAt || Date.now(),
+            status: 'waiting'
+        };
+
+        if (front) {
+            this.waitingQueue.unshift(userObject);
+        } else {
+            this.waitingQueue.push(userObject);
+        }
+
+        this.userStatus.set(user.socketId, 'waiting');
+        return userObject;
+    }
+
     /**
      * Remove user from queue
      * @param {string} socketId - Socket ID of the user

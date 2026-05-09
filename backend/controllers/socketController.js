@@ -443,8 +443,8 @@ const checkAndPairUsers = (io) => {
         const socket2 = getSocketById(io, user2.socketId);
 
         if (!socket1 || !socket2) {
-            if (socket1) queueService.addToQueue(user1.socketId, user1);
-            if (socket2) queueService.addToQueue(user2.socketId, user2);
+            if (socket1) queueService.requeueUser(user1, { front: true });
+            if (socket2) queueService.requeueUser(user2, { front: true });
             if (!socket1) queueService.removeUser(user1.socketId);
             if (!socket2) queueService.removeUser(user2.socketId);
             continue;
