@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { MessageSquareText, Video } from "lucide-react";
+import { AlertTriangle, MessageSquareText, Video } from "lucide-react";
 import AppShell from "../components/layout/AppShell.jsx";
 import Button from "../components/ui/Button.jsx";
 import Badge from "../components/ui/Badge.jsx";
@@ -21,18 +21,18 @@ function IdleChat() {
   };
 
   return (
-    <section className="flex min-h-screen items-center justify-center px-4 pt-24 pb-10">
-      <div className="max-w-2xl text-center">
+    <section className="mx-auto flex min-h-screen max-w-5xl items-center px-4 pt-24 pb-10 sm:px-6 lg:px-8">
+      <div className="surface-panel w-full rounded-lg p-5 sm:p-8">
         <Badge variant="info">No active room</Badge>
-        <h1 className="mt-5 text-4xl font-semibold tracking-tight text-white sm:text-6xl">Start a random chat.</h1>
-        <p className="mt-5 text-lg leading-8 text-slate-300">Choose text or video to join the backend queue and wait for a match.</p>
-        <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
-          <Button type="button" onClick={() => begin(CHAT_MODES.VIDEO)}>
-            <Video className="h-4 w-4" />
+        <h1 className="mt-5 text-4xl font-bold text-slate-950 sm:text-5xl">Choose a room mode.</h1>
+        <p className="mt-4 max-w-2xl text-base leading-7 text-slate-600">Your browser will join the backend queue and wait for a matching socket.</p>
+        <div className="mt-8 grid gap-3 sm:grid-cols-2">
+          <Button size="lg" type="button" onClick={() => begin(CHAT_MODES.VIDEO)}>
+            <Video className="h-5 w-5" />
             Start video
           </Button>
-          <Button type="button" variant="secondary" onClick={() => begin(CHAT_MODES.TEXT)}>
-            <MessageSquareText className="h-4 w-4" />
+          <Button size="lg" type="button" variant="secondary" onClick={() => begin(CHAT_MODES.TEXT)}>
+            <MessageSquareText className="h-5 w-5" />
             Start text
           </Button>
         </div>
@@ -42,17 +42,28 @@ function IdleChat() {
 }
 
 function TextRoomPanel() {
+  const roomId = useAppStore((state) => state.roomId);
+  const partnerId = useAppStore((state) => state.partnerId);
+
   return (
-    <section className="glass-panel hidden min-h-[34rem] flex-col justify-between rounded-[2rem] p-8 lg:flex">
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-cyan-200">Private room</p>
-        <h1 className="mt-3 text-4xl font-semibold tracking-tight text-white">Text conversation</h1>
-        <p className="mt-4 max-w-xl text-lg leading-8 text-slate-300">
-          Messages are sent with send_message and confirmed by message_sent. Incoming partner messages appear instantly from receive_message.
-        </p>
+    <section className="media-panel hidden min-h-[34rem] rounded-lg p-5 text-white lg:flex lg:flex-col">
+      <div className="flex items-center justify-between gap-3 border-b border-white/10 pb-4">
+        <div>
+          <p className="text-sm font-semibold text-teal-200">Private room</p>
+          <h1 className="mt-2 text-3xl font-bold">Text conversation</h1>
+        </div>
+        <Badge variant="dark">Socket room</Badge>
       </div>
-      <div className="rounded-[2rem] border border-white/10 bg-white/5 p-6 text-sm leading-7 text-slate-300">
-        If your partner leaves, the partner_disconnected event closes the room and reveals the Next button.
+
+      <div className="grid flex-1 content-center gap-3 py-6">
+        <div className="rounded-lg border border-white/10 bg-white/10 p-4">
+          <p className="text-sm text-slate-400">Room ID</p>
+          <p className="mt-2 break-all font-mono text-sm text-slate-100">{roomId || "pending"}</p>
+        </div>
+        <div className="rounded-lg border border-white/10 bg-white/10 p-4">
+          <p className="text-sm text-slate-400">Partner socket</p>
+          <p className="mt-2 break-all font-mono text-sm text-slate-100">{partnerId || "pending"}</p>
+        </div>
       </div>
     </section>
   );
@@ -82,11 +93,14 @@ export default function Chat() {
   if (queueStatus === SESSION_STATUS.ERROR) {
     return (
       <AppShell>
-        <section className="flex min-h-screen items-center justify-center px-4 pt-24 pb-10">
-          <div className="max-w-xl text-center">
-            <Badge variant="error">Setup failed</Badge>
-            <h1 className="mt-5 text-4xl font-semibold text-white">Could not start the session.</h1>
-            <p className="mt-4 text-slate-300">{lastError}</p>
+        <section className="mx-auto flex min-h-screen max-w-3xl items-center px-4 pt-24 pb-10">
+          <div className="surface-panel w-full rounded-lg p-6 text-center">
+            <Badge variant="error">
+              <AlertTriangle className="h-3.5 w-3.5" />
+              Setup failed
+            </Badge>
+            <h1 className="mt-5 text-4xl font-bold text-slate-950">Could not start the session.</h1>
+            <p className="mt-4 text-slate-600">{lastError}</p>
           </div>
         </section>
       </AppShell>
@@ -98,12 +112,20 @@ export default function Chat() {
   return (
     <AppShell>
       <motion.main
-        initial={{ opacity: 0, y: 18 }}
+        initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -18 }}
-        transition={{ duration: 0.35 }}
+        exit={{ opacity: 0, y: -16 }}
+        transition={{ duration: 0.3 }}
         className="mx-auto flex min-h-screen max-w-7xl flex-col px-4 pt-24 pb-6 sm:px-6 lg:px-8"
       >
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <Badge variant={isVideo ? "info" : "success"}>{isVideo ? "Video mode" : "Text mode"}</Badge>
+            <h1 className="mt-3 text-3xl font-bold text-slate-950">Live room</h1>
+          </div>
+          <p className="max-w-xl text-sm leading-6 text-slate-600">Matched sockets stay isolated inside a backend room until either user moves on.</p>
+        </div>
+
         <div className="grid flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(22rem,0.36fr)]">
           {isVideo ? <VideoStage /> : <TextRoomPanel />}
           <ChatSidebar expanded={!isVideo} />

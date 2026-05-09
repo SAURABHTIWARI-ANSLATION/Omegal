@@ -14,14 +14,14 @@ export default class ErrorBoundary extends Component {
     if (!this.state.hasError) return this.props.children;
 
     return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-950 p-6 text-white">
-        <div className="max-w-md text-center">
-          <p className="text-sm font-semibold uppercase tracking-[0.35em] text-rose-300">Runtime error</p>
-          <h1 className="mt-4 text-3xl font-semibold">EchoRoom needs a refresh.</h1>
-          <p className="mt-3 text-slate-400">{this.state.message}</p>
+      <main className="flex min-h-screen items-center justify-center bg-[#f6f8fb] p-6 text-slate-950">
+        <div className="surface-panel max-w-md rounded-lg p-6 text-center">
+          <p className="text-sm font-semibold text-rose-600">Runtime error</p>
+          <h1 className="mt-4 text-3xl font-bold">Omegal needs a refresh.</h1>
+          <p className="mt-3 text-slate-600">{this.state.message}</p>
           <button
             type="button"
-            className="mt-8 rounded-full bg-white px-6 py-3 text-sm font-semibold text-slate-950"
+            className="mt-8 rounded-lg bg-slate-950 px-5 py-3 text-sm font-semibold text-white"
             onClick={() => window.location.reload()}
           >
             Reload app

@@ -10,36 +10,37 @@ import { SESSION_STATUS } from "../../utils/constants.js";
 export default function ChatSidebar({ expanded = false }) {
   const queueStatus = useAppStore((state) => state.queueStatus);
   const partnerDisconnected = useAppStore((state) => state.partnerDisconnected);
+  const messages = useAppStore((state) => state.messages);
   const { nextPartner } = useQueue();
   const canChat = queueStatus === SESSION_STATUS.MATCHED && !partnerDisconnected;
 
   return (
-    <aside className={`glass-panel flex min-h-[28rem] flex-col overflow-hidden rounded-[2rem] ${expanded ? "lg:col-span-2" : ""}`}>
-      <div className="flex items-center justify-between border-b border-white/10 px-4 py-4 sm:px-5">
-        <div className="flex items-center gap-3">
-          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-cyan-200">
+    <aside className={`surface-panel flex min-h-[28rem] flex-col overflow-hidden rounded-lg ${expanded ? "lg:col-span-2" : ""}`}>
+      <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-4 sm:px-5">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-950 text-white">
             <MessageCircle className="h-5 w-5" />
           </span>
-          <div>
-            <h2 className="text-sm font-semibold text-white">Live chat</h2>
-            <p className="text-xs text-slate-400">Socket.io messages</p>
+          <div className="min-w-0">
+            <h2 className="text-sm font-bold text-slate-950">Room chat</h2>
+            <p className="truncate text-xs text-slate-500">{messages.length} messages</p>
           </div>
         </div>
         <Badge variant={canChat ? "success" : partnerDisconnected ? "warning" : "default"}>
-          {canChat ? "Connected" : partnerDisconnected ? "Disconnected" : "Waiting"}
+          {canChat ? "Connected" : partnerDisconnected ? "Ended" : "Waiting"}
         </Badge>
       </div>
 
       {partnerDisconnected ? (
-        <div className="border-b border-white/10 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">
-          Partner disconnected. Start a new search when you are ready.
+        <div className="border-b border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          Partner disconnected. You can start a fresh room.
         </div>
       ) : null}
 
       <MessageList />
 
       {partnerDisconnected ? (
-        <div className="border-t border-white/10 p-4">
+        <div className="border-t border-slate-200 p-4">
           <Button className="w-full" type="button" onClick={nextPartner}>
             <SkipForward className="h-4 w-4" />
             Next partner

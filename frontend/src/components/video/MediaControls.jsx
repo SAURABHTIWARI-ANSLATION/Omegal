@@ -16,14 +16,14 @@ export default function MediaControls() {
   const hasVideo = Boolean(localStream?.getVideoTracks().length);
 
   return (
-    <div className="safe-bottom flex flex-wrap items-center justify-center gap-3 rounded-[2rem] border border-white/10 bg-slate-950/65 p-3 backdrop-blur-xl">
+    <div className="safe-bottom flex flex-wrap items-center justify-center gap-3 rounded-lg border border-white/10 bg-white/10 p-3 backdrop-blur-xl">
       <Button type="button" variant={audioEnabled ? "secondary" : "danger"} size="icon" disabled={!hasAudio} onClick={toggleAudio} aria-label="Toggle microphone">
         {audioEnabled ? <Mic className="h-5 w-5" /> : <MicOff className="h-5 w-5" />}
       </Button>
       <Button type="button" variant={videoEnabled ? "secondary" : "danger"} size="icon" disabled={!hasVideo} onClick={toggleVideo} aria-label="Toggle camera">
         {videoEnabled ? <Video className="h-5 w-5" /> : <VideoOff className="h-5 w-5" />}
       </Button>
-      <Button type="button" variant={partnerDisconnected ? "primary" : "subtle"} onClick={nextPartner}>
+      <Button type="button" variant={partnerDisconnected ? "success" : "subtle"} onClick={nextPartner}>
         <SkipForward className="h-4 w-4" />
         {partnerDisconnected ? "Find next" : "Next"}
       </Button>

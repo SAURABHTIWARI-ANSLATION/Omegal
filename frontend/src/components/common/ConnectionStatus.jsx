@@ -12,10 +12,10 @@ export default function ConnectionStatus({ compact = false }) {
   const label = isConnected ? "Signal online" : socketStatus === SOCKET_STATUS.CONNECTING ? "Connecting" : "Signal offline";
 
   return (
-    <Badge variant={variant} className="backdrop-blur-xl">
+    <Badge variant={variant}>
       {isConnected ? <Wifi className="h-3.5 w-3.5" /> : <WifiOff className="h-3.5 w-3.5" />}
       <span>{label}</span>
-      {!compact && socketId ? <span className="hidden text-white/45 sm:inline">{socketId.slice(0, 6)}</span> : null}
+      {!compact && socketId ? <span className="hidden text-slate-400 sm:inline">{socketId.slice(0, 6)}</span> : null}
     </Badge>
   );
 }
