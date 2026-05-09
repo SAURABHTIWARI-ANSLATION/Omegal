@@ -22,8 +22,8 @@ body {
   margin: 0;
   overflow-x: hidden;
   background:
-    linear-gradient(180deg, rgba(246, 248, 251, 0.96), rgba(235, 241, 247, 0.92)),
-    #f6f8fb;
+    linear-gradient(180deg, rgba(248, 250, 252, 0.98), rgba(231, 238, 247, 0.94)),
+    #eef3f8;
 }
 
 button,
@@ -53,17 +53,39 @@ input {
 
 .surface-panel {
   border: 1px solid rgba(148, 163, 184, 0.28);
-  background: rgba(255, 255, 255, 0.86);
-  box-shadow: 0 20px 54px rgba(15, 23, 42, 0.08);
-  backdrop-filter: blur(18px);
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 18px 46px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(14px);
 }
 
 .media-panel {
   border: 1px solid rgba(30, 41, 59, 0.82);
-  background: #0d1320;
-  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.18);
+  background: #0b1020;
+  box-shadow: 0 22px 60px rgba(15, 23, 42, 0.16);
 }
 
 .safe-bottom {
   padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
+.marketing-noise {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: 44px 44px;
+}
+
+.float-soft {
+  animation: float-soft 7s ease-in-out infinite;
+}
+
+@keyframes float-soft {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+
+  50% {
+    transform: translate3d(0, -10px, 0);
+  }
 }
