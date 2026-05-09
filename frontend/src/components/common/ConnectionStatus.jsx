@@ -1,0 +1,21 @@
+import { Wifi, WifiOff } from "lucide-react";
+import Badge from "../ui/Badge.jsx";
+import { useAppStore } from "../../store/appStore.js";
+import { SOCKET_STATUS } from "../../utils/constants.js";
+
+export default function ConnectionStatus({ compact = false }) {
+  const socketStatus = useAppStore((state) => state.socketStatus);
+  const socketId = useAppStore((state) => state.socketId);
+
+  const isConnected = socketStatus === SOCKET_STATUS.CONNECTED;
+  const variant = isConnected ? "success" : socketStatus === SOCKET_STATUS.ERROR ? "error" : "warning";
+  const label = isConnected ? "Signal online" : socketStatus === SOCKET_STATUS.CONNECTING ? "Connecting" : "Signal offline";
+
+  return (
+    <Badge variant={variant} className="backdrop-blur-xl">
+      {isConnected ? <Wifi className="h-3.5 w-3.5" /> : <WifiOff className="h-3.5 w-3.5" />}
+      <span>{label}</span>
+      {!compact && socketId ? <span className="hidden text-white/45 sm:inline">{socketId.slice(0, 6)}</span> : null}
+    </Badge>
+  );
+}

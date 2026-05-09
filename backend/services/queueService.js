@@ -1,7 +1,3 @@
-/**
- * Queue Service - Manages user waiting queue and pairing logic
- * Uses in-memory storage for queue management
- */
 
 class QueueService {
     constructor() {
@@ -49,11 +45,11 @@ class QueueService {
         if (index !== -1) {
             const removedUser = this.waitingQueue.splice(index, 1)[0];
             this.userStatus.delete(socketId);
-            console.log(`✅ User ${socketId} removed from queue. Queue size: ${this.waitingQueue.length}`);
+            console.log(` User ${socketId} removed from queue. Queue size: ${this.waitingQueue.length}`);
             return true;
         }
 
-        console.warn(`⚠️ User ${socketId} not found in queue`);
+        console.warn(`User ${socketId} not found in queue`);
         return false;
     }
 

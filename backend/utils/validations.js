@@ -1,6 +1,3 @@
-/**
- * Validation utilities
- */
 
 /**
  * Validate socket ID format

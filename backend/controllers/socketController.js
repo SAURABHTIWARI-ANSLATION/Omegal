@@ -19,15 +19,13 @@ import {
  */
 export const registerSocketControllers = (io) => {
     io.on('connection', (socket) => {
-        console.log(`🟢 User connected: ${socket.id}`);
+        console.log(`User connected: ${socket.id}`);
 
         // Emit connection success
         socket.emit('connection_success', {
             socketId: socket.id,
             message: 'Connected to server'
         });
-
-        // ==================== QUEUE EVENTS ====================
 
         /**
          * User joins waiting queue
@@ -98,7 +96,6 @@ export const registerSocketControllers = (io) => {
             }
         });
 
-        // ==================== CHAT EVENTS ====================
 
         /**
          * Send text message
@@ -142,7 +139,6 @@ export const registerSocketControllers = (io) => {
             }
         });
 
-        // ==================== WEBRTC SIGNALING EVENTS ====================
 
         /**
          * Send WebRTC offer
@@ -255,7 +251,6 @@ export const registerSocketControllers = (io) => {
             }
         });
 
-        // ==================== ROOM EVENTS ====================
 
         /**
          * Get current room info
@@ -404,7 +399,7 @@ const checkAndPairUsers = (io) => {
             queueSize: queueService.getQueueSize()
         });
 
-        console.log(`✅ Users paired in room: ${roomId}`);
+        console.log(`Users paired in room: ${roomId}`);
 
         // Continue checking for more pairs
         checkAndPairUsers(io);
