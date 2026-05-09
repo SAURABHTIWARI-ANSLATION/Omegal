@@ -31,6 +31,22 @@ test('queue state can be cleared after users are paired', () => {
     assert.equal(queueService.getUserStatus('socket-b'), null);
 });
 
+test('queue exposes positions and prunes unavailable waiting users', () => {
+    queueService.clear();
+
+    queueService.addToQueue('socket-a', {});
+    queueService.addToQueue('socket-b', {});
+    queueService.addToQueue('socket-c', {});
+
+    assert.equal(queueService.getQueuePosition('socket-b'), 2);
+
+    const removed = queueService.pruneUnavailableUsers((socketId) => socketId !== 'socket-b');
+
+    assert.equal(removed, 1);
+    assert.equal(queueService.getQueuePosition('socket-c'), 2);
+    assert.equal(queueService.getUserStatus('socket-b'), null);
+});
+
 test('room service caps retained room messages and hides room details by default', () => {
     roomService.clear();
     const room = roomService.createRoom('room_test', 'socket-a', 'socket-b', {}, {});
@@ -42,6 +58,26 @@ test('room service caps retained room messages and hides room details by default
     assert.equal(room.messages.length, roomService.maxMessagesPerRoom);
     assert.deepEqual(roomService.getStats(), { totalRooms: 1, totalUsers: 2 });
     assert.equal(roomService.getStats({ includeRooms: true }).rooms.length, 1);
+});
+
+test('room service rejects non-participant writes and expires inactive rooms', () => {
+    roomService.clear();
+    const room = roomService.createRoom('room_expire', 'socket-a', 'socket-b', {}, {});
+
+    assert.equal(roomService.addMessage(room.roomId, 'socket-x', 'hello'), false);
+    assert.equal(roomService.storeOffer(room.roomId, 'socket-x', { type: 'offer', sdp: 'v=0' }), false);
+    assert.equal(roomService.storeAnswer(room.roomId, 'socket-x', { type: 'answer', sdp: 'v=0' }), false);
+    assert.equal(roomService.addICECandidate(room.roomId, 'socket-x', { candidate: 'candidate:1' }), false);
+    assert.equal(room.messages.length, 0);
+
+    assert.equal(roomService.addICECandidate(room.roomId, 'socket-a', { candidate: 'candidate:1' }), true);
+
+    room.lastActivityAt = Date.now() - roomService.maxRoomAgeMs - 1;
+    const expiredRooms = roomService.closeExpiredRooms();
+
+    assert.equal(expiredRooms.length, 1);
+    assert.equal(roomService.getRoom(room.roomId), null);
+    assert.equal(roomService.getRoomByUser('socket-a'), null);
 });
 
 test('validations reject oversized signaling and sanitize user data', () => {

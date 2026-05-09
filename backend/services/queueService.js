@@ -56,6 +56,11 @@ class QueueService {
         return false;
     }
 
+    getQueuePosition(socketId) {
+        const index = this.waitingQueue.findIndex(user => user.socketId === socketId);
+        return index === -1 ? null : index + 1;
+    }
+
     /**
      * Remove all queue status for a user, whether waiting or paired.
      * @param {string} socketId - Socket ID of the user
@@ -69,6 +74,19 @@ class QueueService {
         }
         const removedStatus = this.userStatus.delete(socketId);
         return removedFromQueue || removedStatus;
+    }
+
+    pruneUnavailableUsers(isAvailable) {
+        const before = this.waitingQueue.length;
+        this.waitingQueue = this.waitingQueue.filter((user) => {
+            const keep = isAvailable(user.socketId);
+            if (!keep) {
+                this.userStatus.delete(user.socketId);
+            }
+            return keep;
+        });
+
+        return before - this.waitingQueue.length;
     }
 
     /**
