@@ -14,6 +14,16 @@ class RoomService {
         this.maxRoomAgeMs = Number(process.env.MAX_ROOM_AGE_MS || 2 * 60 * 60 * 1000);
     }
 
+    createWebRTCState() {
+        return {
+            user1Offer: null,
+            user2Offer: null,
+            user1Answer: null,
+            user2Answer: null,
+            iceCandidates: []
+        };
+    }
+
     /**
      * Create a new room with two users
      * @param {string} roomId - Unique room ID
@@ -38,14 +48,10 @@ class RoomService {
             createdAt: now,
             lastActivityAt: now,
             status: 'active',
+            sessionVersion: 1,
+            blockedPartnerIds: [],
             messages: [],
-            webrtcState: {
-                user1Offer: null,
-                user2Offer: null,
-                user1Answer: null,
-                user2Answer: null,
-                iceCandidates: []
-            }
+            webrtcState: this.createWebRTCState()
         };
 
         this.rooms.set(roomId, room);
@@ -84,10 +90,25 @@ class RoomService {
     }
 
     getParticipantKey(room, socketId) {
-        if (!room) return null;
-        if (room.user1.socketId === socketId) return 'user1';
-        if (room.user2.socketId === socketId) return 'user2';
+        if (!room || !socketId) return null;
+        if (room.user1?.socketId === socketId) return 'user1';
+        if (room.user2?.socketId === socketId) return 'user2';
         return null;
+    }
+
+    getParticipant(room, socketId) {
+        const participantKey = this.getParticipantKey(room, socketId);
+        return participantKey ? room[participantKey] : null;
+    }
+
+    getParticipants(room) {
+        if (!room) return [];
+        return [room.user1, room.user2].filter(Boolean);
+    }
+
+    getSingleParticipant(room) {
+        const participants = this.getParticipants(room);
+        return participants.length === 1 ? participants[0] : null;
     }
 
     isParticipant(roomId, socketId) {
@@ -110,13 +131,89 @@ class RoomService {
         const room = this.getRoom(roomId);
         if (!room) return null;
 
-        if (room.user1.socketId === socketId) {
-            return room.user2.socketId;
-        } else if (room.user2.socketId === socketId) {
-            return room.user1.socketId;
+        if (room.user1?.socketId === socketId) {
+            return room.user2?.socketId || null;
+        } else if (room.user2?.socketId === socketId) {
+            return room.user1?.socketId || null;
         }
 
         return null;
+    }
+
+    resetWebRTCState(roomId) {
+        const room = this.getRoom(roomId);
+        if (!room) return null;
+
+        room.webrtcState = this.createWebRTCState();
+        room.messages = [];
+        this.touchRoom(room);
+        return room;
+    }
+
+    bumpSessionVersion(roomId) {
+        const room = this.resetWebRTCState(roomId);
+        if (!room) return null;
+
+        room.sessionVersion = (Number(room.sessionVersion) || 1) + 1;
+        return room.sessionVersion;
+    }
+
+    addBlockedPartner(roomId, socketId) {
+        const room = this.getRoom(roomId);
+        if (!room || !socketId) return false;
+
+        if (!Array.isArray(room.blockedPartnerIds)) {
+            room.blockedPartnerIds = [];
+        }
+
+        if (!room.blockedPartnerIds.includes(socketId)) {
+            room.blockedPartnerIds.push(socketId);
+        }
+
+        this.touchRoom(room);
+        return true;
+    }
+
+    getBlockedPartnerIds(roomId) {
+        const room = this.getRoom(roomId);
+        return Array.isArray(room?.blockedPartnerIds) ? room.blockedPartnerIds : [];
+    }
+
+    detachParticipant(roomId, socketId) {
+        const room = this.getRoom(roomId);
+        const participantKey = this.getParticipantKey(room, socketId);
+        if (!room || !participantKey) return null;
+
+        const detachedUser = room[participantKey];
+        room[participantKey] = null;
+        room.status = this.getParticipants(room).length > 0 ? 'waiting' : 'closed';
+        this.userRoomMap.delete(socketId);
+        this.touchRoom(room);
+        return detachedUser;
+    }
+
+    attachParticipant(roomId, user) {
+        const room = this.getRoom(roomId);
+        if (!room || !user?.socketId || this.isParticipant(roomId, user.socketId)) return null;
+
+        const participantKey = !room.user1 ? 'user1' : !room.user2 ? 'user2' : null;
+        if (!participantKey) return null;
+
+        room[participantKey] = {
+            ...user,
+            socketId: user.socketId
+        };
+        room.status = this.getParticipants(room).length === 2 ? 'active' : 'waiting';
+        this.userRoomMap.set(user.socketId, roomId);
+        this.touchRoom(room);
+        return room[participantKey];
+    }
+
+    getWaitingRooms() {
+        return Array.from(this.rooms.values()).filter((room) => (
+            room.status === 'waiting'
+            && this.getParticipants(room).length === 1
+        ));
     }
 
     /**
@@ -216,8 +313,9 @@ class RoomService {
     closeRoom(roomId) {
         const room = this.getRoom(roomId);
         if (room) {
-            this.userRoomMap.delete(room.user1.socketId);
-            this.userRoomMap.delete(room.user2.socketId);
+            this.getParticipants(room).forEach((user) => {
+                this.userRoomMap.delete(user.socketId);
+            });
             this.rooms.delete(roomId);
             console.log(`🏚️ Room deleted: ${roomId}`);
             return true;
@@ -275,8 +373,10 @@ class RoomService {
                 roomId: room.roomId,
                 createdAt: room.createdAt,
                 lastActivityAt: room.lastActivityAt,
-                user1: room.user1.socketId,
-                user2: room.user2.socketId
+                status: room.status,
+                sessionVersion: room.sessionVersion,
+                user1: room.user1?.socketId || null,
+                user2: room.user2?.socketId || null
             }))
         };
     }

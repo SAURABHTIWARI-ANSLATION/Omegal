@@ -26,6 +26,9 @@ export function normalizeMatchPayload(payload = {}) {
   return {
     roomId: payload.roomId || payload.room || payload.room_id || null,
     partnerId: payload.partnerId || payload.partnerSocketId || payload.partner || null,
+    sessionVersion: Number(payload.sessionVersion ?? payload.session_version ?? 1) || 1,
+    reconnect: Boolean(payload.reconnect),
+    message: payload.message || null,
   };
 }
 

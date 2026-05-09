@@ -30,6 +30,7 @@ export function useChat({ listen = false } = {}) {
       socketService.emit(EVENTS.SEND_MESSAGE, {
         roomId: state.roomId,
         partnerId: state.partnerId,
+        sessionVersion: state.sessionVersion,
         message: trimmed,
         clientMessageId,
       });
@@ -48,6 +49,8 @@ export function useChat({ listen = false } = {}) {
 
     const handleReceiveMessage = (payload = {}) => {
       const state = useAppStore.getState();
+      if (payload.roomId && payload.roomId !== state.roomId) return;
+      if (payload.sessionVersion && Number(payload.sessionVersion) !== Number(state.sessionVersion)) return;
       const message = normalizeIncomingMessage(payload, state.socketId);
       if (message.sender === "me") {
         state.confirmMessageSent({ clientMessageId: message.clientMessageId, id: message.id });
@@ -60,8 +63,21 @@ export function useChat({ listen = false } = {}) {
       useAppStore.getState().confirmMessageSent(payload);
     };
 
-    const handlePartnerDisconnected = () => {
+    const handlePeerReset = (payload = {}) => {
       const state = useAppStore.getState();
+      if (payload.roomId && state.roomId && payload.roomId !== state.roomId) return;
+      if (payload.sessionVersion && state.sessionVersion && Number(payload.sessionVersion) < Number(state.sessionVersion)) return;
+      closePeerConnection();
+      stopStream(state.remoteStream);
+      state.setRemoteStream(null);
+      state.setRtcConnectionState("new");
+      state.setIceConnectionState("new");
+    };
+
+    const handlePartnerDisconnected = (payload = {}) => {
+      const state = useAppStore.getState();
+      if (payload.roomId && state.roomId && payload.roomId !== state.roomId) return;
+      if (payload.sessionVersion && state.sessionVersion && Number(payload.sessionVersion) !== Number(state.sessionVersion)) return;
       closePeerConnection();
       stopStream(state.remoteStream);
       state.setPartnerDisconnected();
@@ -71,11 +87,13 @@ export function useChat({ listen = false } = {}) {
 
     socket.on(EVENTS.RECEIVE_MESSAGE, handleReceiveMessage);
     socket.on(EVENTS.MESSAGE_SENT, handleMessageSent);
+    socket.on(EVENTS.PEER_RESET, handlePeerReset);
     socket.on(EVENTS.PARTNER_DISCONNECTED, handlePartnerDisconnected);
 
     return () => {
       socket.off(EVENTS.RECEIVE_MESSAGE, handleReceiveMessage);
       socket.off(EVENTS.MESSAGE_SENT, handleMessageSent);
+      socket.off(EVENTS.PEER_RESET, handlePeerReset);
       socket.off(EVENTS.PARTNER_DISCONNECTED, handlePartnerDisconnected);
     };
   }, [listen]);

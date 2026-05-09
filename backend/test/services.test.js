@@ -66,6 +66,22 @@ test('queue can restore a shifted paired user without dropping their turn', () =
     assert.equal(queueService.getQueuePosition('socket-a'), 1);
 });
 
+test('queue can pick the next eligible user while skipping excluded sockets', () => {
+    queueService.clear();
+
+    queueService.addToQueue('socket-old-partner', { chatMode: 'video' });
+    queueService.addToQueue('socket-new-partner', { chatMode: 'video' });
+
+    const nextUser = queueService.takeNextUser({
+        excludeSocketIds: new Set(['socket-old-partner']),
+        isAvailable: (socketId) => socketId !== 'socket-missing'
+    });
+
+    assert.equal(nextUser.socketId, 'socket-new-partner');
+    assert.equal(queueService.getUserStatus('socket-new-partner'), 'paired');
+    assert.equal(queueService.getQueuePosition('socket-old-partner'), 1);
+});
+
 test('room service caps retained room messages and hides room details by default', () => {
     roomService.clear();
     const room = roomService.createRoom('room_test', 'socket-a', 'socket-b', {}, {});
@@ -77,6 +93,38 @@ test('room service caps retained room messages and hides room details by default
     assert.equal(room.messages.length, roomService.maxMessagesPerRoom);
     assert.deepEqual(roomService.getStats(), { totalRooms: 1, totalUsers: 2 });
     assert.equal(roomService.getStats({ includeRooms: true }).rooms.length, 1);
+});
+
+test('room service supports stable room partner replacement', () => {
+    roomService.clear();
+
+    const room = roomService.createRoom(
+        'room_next',
+        'socket-requester',
+        'socket-old-partner',
+        { chatMode: 'video' },
+        { chatMode: 'video' }
+    );
+
+    roomService.addBlockedPartner(room.roomId, 'socket-old-partner');
+    const nextVersion = roomService.bumpSessionVersion(room.roomId);
+    const detached = roomService.detachParticipant(room.roomId, 'socket-old-partner');
+
+    assert.equal(nextVersion, 2);
+    assert.equal(detached.socketId, 'socket-old-partner');
+    assert.equal(roomService.getRoomByUser('socket-requester').roomId, room.roomId);
+    assert.equal(roomService.getRoomByUser('socket-old-partner'), null);
+    assert.equal(roomService.getWaitingRooms().length, 1);
+    assert.deepEqual(roomService.getBlockedPartnerIds(room.roomId), ['socket-old-partner']);
+
+    const attached = roomService.attachParticipant(room.roomId, {
+        socketId: 'socket-new-partner',
+        chatMode: 'video'
+    });
+
+    assert.equal(attached.socketId, 'socket-new-partner');
+    assert.equal(roomService.getPartner(room.roomId, 'socket-requester'), 'socket-new-partner');
+    assert.equal(roomService.getRoom(room.roomId).status, 'active');
 });
 
 test('room service rejects non-participant writes and expires inactive rooms', () => {

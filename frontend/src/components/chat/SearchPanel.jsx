@@ -13,12 +13,12 @@ const terminalLines = [
 
 function MatrixRain() {
   return (
-    <div className="pointer-events-none absolute inset-0 overflow-hidden opacity-30" aria-hidden="true">
-      {Array.from({ length: 18 }).map((_, index) => (
+    <div className="pointer-events-none absolute inset-0 hidden overflow-hidden opacity-25 sm:block" aria-hidden="true">
+      {Array.from({ length: 14 }).map((_, index) => (
         <motion.div
           key={index}
           className="absolute top-[-20%] font-mono text-xs leading-6 text-teal-300/55"
-          style={{ left: `${index * 6}%` }}
+          style={{ left: `${index * 7.4}%` }}
           animate={{ y: ["0vh", "130vh"] }}
           transition={{ duration: 4 + (index % 5), repeat: Infinity, ease: "linear", delay: index * 0.18 }}
         >
@@ -72,51 +72,53 @@ function RadarCore() {
 export default function SearchPanel() {
   const queueSize = useAppStore((state) => state.queueSize);
   const chatMode = useAppStore((state) => state.chatMode);
+  const waitingMessage = useAppStore((state) => state.waitingMessage);
   const isVideo = chatMode === CHAT_MODES.VIDEO;
+  const headline = waitingMessage || "Scanning the live mesh for a real partner.";
 
   return (
-    <section className="relative mt-16 h-[calc(100vh-4rem)] overflow-hidden bg-[#050711] text-white">
+    <section className="relative mt-16 min-h-[calc(100dvh-4rem)] overflow-hidden bg-[#050711] text-white">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_18%,rgba(20,184,166,0.24),transparent_34%),radial-gradient(circle_at_82%_22%,rgba(99,102,241,0.22),transparent_32%),linear-gradient(180deg,#050711,#08111f)]" />
       <div className="marketing-noise absolute inset-0 opacity-25" />
       <MatrixRain />
 
-      <div className="relative mx-auto grid h-full max-w-7xl items-center gap-7 px-4 pb-5 sm:px-6 lg:grid-cols-[minmax(0,0.98fr)_minmax(24rem,0.72fr)] lg:px-8">
+      <div className="relative mx-auto grid min-h-[calc(100dvh-4rem)] max-w-7xl items-center gap-5 px-4 py-5 sm:gap-7 sm:px-6 lg:grid-cols-[minmax(0,0.98fr)_minmax(24rem,0.72fr)] lg:px-8">
         <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} className="min-w-0">
           <div className="inline-flex items-center gap-2 rounded-lg border border-teal-300/25 bg-teal-300/10 px-3 py-2 font-mono text-xs font-bold text-teal-100">
             <Terminal className="h-3.5 w-3.5" />
             {isVideo ? "VIDEO_QUEUE_SCAN" : "TEXT_QUEUE_SCAN"}
           </div>
-          <h1 className="mt-5 max-w-4xl text-4xl font-black leading-none text-white sm:text-5xl lg:text-7xl">
-            Scanning the live mesh for a real partner.
+          <h1 className="mt-4 max-w-4xl text-3xl font-black leading-tight text-white sm:mt-5 sm:text-5xl sm:leading-none lg:text-7xl">
+            {headline}
           </h1>
-          <p className="mt-4 max-w-2xl text-base leading-7 text-slate-300 sm:text-lg sm:leading-8">
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300 sm:mt-4 sm:text-lg sm:leading-8">
             Secure socket handshake active. Omegal is searching the queue, verifying room scope, and preparing a private {isVideo ? "video" : "text"} room.
           </p>
 
-          <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="mt-4 grid grid-cols-2 gap-2.5 sm:mt-5 sm:grid-cols-4 sm:gap-3">
             {scanSteps.map((label, index) => (
               <motion.div
                 key={label}
-                className="rounded-lg border border-white/10 bg-white/[0.07] p-4 backdrop-blur"
+                className="rounded-lg border border-white/10 bg-white/[0.07] p-3 backdrop-blur sm:p-4"
                 animate={{ borderColor: ["rgba(255,255,255,0.1)", "rgba(94,234,212,0.55)", "rgba(255,255,255,0.1)"] }}
                 transition={{ duration: 2.2, repeat: Infinity, delay: index * 0.24 }}
               >
-                <p className="font-mono text-2xl font-black text-white">0{index + 1}</p>
+                <p className="font-mono text-xl font-black text-white sm:text-2xl">0{index + 1}</p>
                 <p className="mt-2 break-words font-mono text-xs text-slate-300">{label}</p>
               </motion.div>
             ))}
           </div>
 
-          <div className="mt-5 overflow-hidden rounded-lg border border-white/10 bg-black/35 p-4 font-mono text-xs shadow-2xl shadow-black/40">
+          <div className="mt-4 overflow-hidden rounded-lg border border-white/10 bg-black/35 p-3 font-mono text-xs shadow-2xl shadow-black/40 sm:mt-5 sm:p-4">
             {terminalLines.map((line, index) => (
               <motion.div
                 key={line}
-                className="flex items-center gap-2 py-1 text-teal-100"
+                className="flex min-w-0 items-center gap-2 py-1 text-teal-100"
                 animate={{ opacity: [0.45, 1, 0.45] }}
                 transition={{ duration: 2, repeat: Infinity, delay: index * 0.35 }}
               >
                 <span className="text-teal-300">$</span>
-                <span>{line}</span>
+                <span className="min-w-0 break-words">{line}</span>
               </motion.div>
             ))}
           </div>

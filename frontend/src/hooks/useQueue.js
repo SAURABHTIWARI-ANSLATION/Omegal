@@ -62,13 +62,27 @@ export function useQueue({ listen = false, onMatched } = {}) {
 
   const nextPartner = useCallback(async () => {
     const state = useAppStore.getState();
-    socketService.emit(EVENTS.DISCONNECT_ROOM);
+
+    if (state.isSwitchingPartner || state.queueStatus === SESSION_STATUS.SEARCHING) return false;
+    if (!state.roomId || state.partnerDisconnected) {
+      return startQueue(state.chatMode);
+    }
+
     closePeerConnection();
     stopStream(state.remoteStream);
     state.setRemoteStream(null);
-    state.clearMessages();
-    state.addToast({ title: "Searching again", description: "Looking for a new partner.", variant: "default" });
-    return startQueue(state.chatMode);
+    state.setSearching(state.chatMode, {
+      preserveRoom: true,
+      switchingPartner: true,
+      sessionVersion: state.sessionVersion,
+      message: "Looking for a new partner...",
+    });
+    useAppStore.getState().addSystemMessage("Looking for a new partner...");
+    socketService.emit(EVENTS.NEXT_PARTNER, {
+      roomId: state.roomId,
+      sessionVersion: state.sessionVersion,
+    });
+    return true;
   }, [startQueue]);
 
   useEffect(() => {
@@ -85,24 +99,63 @@ export function useQueue({ listen = false, onMatched } = {}) {
       if (!match.roomId || !match.partnerId) return;
 
       const state = useAppStore.getState();
-      const matchKey = `${match.roomId}:${match.partnerId}`;
+      const matchKey = `${match.roomId}:${match.partnerId}:${match.sessionVersion}`;
       if (lastMatchRef.current === matchKey && state.queueStatus === SESSION_STATUS.MATCHED) return;
 
       lastMatchRef.current = matchKey;
+      state.clearMessages();
       state.setMatched(match);
-      state.addSystemMessage("You are now connected to a stranger.");
+      state.addSystemMessage("Connected to stranger.");
       state.addToast({ title: "Partner found", description: "You are connected in a private room.", variant: "success" });
       onMatched?.(match);
+    };
+
+    const resetRemotePeer = () => {
+      const state = useAppStore.getState();
+      closePeerConnection();
+      stopStream(state.remoteStream);
+      state.setRemoteStream(null);
+      state.setRtcConnectionState("new");
+      state.setIceConnectionState("new");
+    };
+
+    const handleNextPartnerWaiting = (payload = {}) => {
+      resetRemotePeer();
+      const state = useAppStore.getState();
+      const message = payload.message || "Looking for a new partner...";
+      state.setSearching(state.chatMode, {
+        preserveRoom: true,
+        switchingPartner: true,
+        sessionVersion: payload.sessionVersion ?? state.sessionVersion,
+        message,
+      });
+      useAppStore.getState().addSystemMessage(message);
+    };
+
+    const handlePartnerWaiting = (payload = {}) => {
+      resetRemotePeer();
+      const state = useAppStore.getState();
+      const message = payload.message || "Waiting for another user...";
+      state.setSearching(state.chatMode, {
+        preserveRoom: false,
+        switchingPartner: false,
+        message,
+      });
+      useAppStore.getState().addSystemMessage(message);
     };
 
     socket.on(EVENTS.QUEUE_SIZE_UPDATED, handleQueueSize);
     socket.on(EVENTS.USER_MATCHED, handleMatched);
     socket.on(EVENTS.MATCHED, handleMatched);
+    socket.on(EVENTS.NEXT_PARTNER_WAITING, handleNextPartnerWaiting);
+    socket.on(EVENTS.PARTNER_WAITING, handlePartnerWaiting);
 
     return () => {
       socket.off(EVENTS.QUEUE_SIZE_UPDATED, handleQueueSize);
       socket.off(EVENTS.USER_MATCHED, handleMatched);
       socket.off(EVENTS.MATCHED, handleMatched);
+      socket.off(EVENTS.NEXT_PARTNER_WAITING, handleNextPartnerWaiting);
+      socket.off(EVENTS.PARTNER_WAITING, handlePartnerWaiting);
     };
   }, [listen, onMatched]);
 

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Columns2, Maximize2, Minimize2, Radio, SignalHigh } from "lucide-react";
+import { Columns2, Maximize2, Minimize2, Radio, SignalHigh, Sparkles } from "lucide-react";
 import Badge from "../ui/Badge.jsx";
 import Button from "../ui/Button.jsx";
 import VideoTile from "./VideoTile.jsx";
@@ -9,7 +9,7 @@ import { cn } from "../../utils/helpers.js";
 
 export default function VideoStage() {
   const stageRef = useRef(null);
-  const [isCinemaLayout, setIsCinemaLayout] = useState(true);
+  const [isCinemaLayout, setIsCinemaLayout] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const localStream = useAppStore((state) => state.localStream);
   const remoteStream = useAppStore((state) => state.remoteStream);
@@ -17,7 +17,13 @@ export default function VideoStage() {
   const iceConnectionState = useAppStore((state) => state.iceConnectionState);
 
   const isConnected = rtcConnectionState === "connected" || iceConnectionState === "connected";
-  const isImmersive = isCinemaLayout || isFullscreen;
+  const isImmersive = isCinemaLayout;
+  const localPreviewClass = cn(
+    "absolute right-3 z-20 aspect-video w-[min(42vw,18rem)] min-w-[10rem] border-teal-300/50 bg-slate-950 shadow-[0_20px_70px_rgba(0,0,0,0.5)] sm:right-4 sm:w-[min(30vw,21rem)]",
+    isFullscreen
+      ? "bottom-[calc(5.75rem+env(safe-area-inset-bottom))] sm:bottom-[calc(6.25rem+env(safe-area-inset-bottom))]"
+      : "bottom-[calc(5.25rem+env(safe-area-inset-bottom))] sm:bottom-[calc(5.75rem+env(safe-area-inset-bottom))]"
+  );
 
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -36,10 +42,9 @@ export default function VideoStage() {
         await document.exitFullscreen();
       } else {
         await stageRef.current.requestFullscreen();
-        setIsCinemaLayout(true);
       }
     } catch {
-      setIsCinemaLayout(true);
+      setIsFullscreen(false);
     }
   };
 
@@ -47,48 +52,52 @@ export default function VideoStage() {
     <section
       ref={stageRef}
       className={cn(
-        "media-panel relative flex min-h-0 flex-1 flex-col gap-3 overflow-hidden rounded-lg p-3 text-white sm:p-4",
-        isFullscreen && "h-screen w-screen rounded-none border-0 bg-slate-950 p-3 sm:p-5"
+        "media-panel relative flex min-h-0 flex-1 flex-col gap-2 overflow-hidden rounded-lg p-2 text-white sm:gap-3 sm:p-3 lg:p-4",
+        isFullscreen && "h-screen w-screen rounded-none border-0 bg-slate-950 p-2 sm:p-4"
       )}
     >
-      <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-3">
-        <div>
-          <p className="text-sm font-semibold text-teal-200">Private room</p>
-          <h2 className="mt-1 text-2xl font-bold">Video conversation</h2>
+      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-white/10 pb-2 sm:gap-3 sm:pb-3">
+        <div className="min-w-0">
+          <p className="hidden items-center gap-2 text-xs font-semibold text-teal-200 sm:flex sm:text-sm">
+            <Sparkles className="h-3.5 w-3.5" />
+            Private room
+          </p>
+          <h2 className="truncate text-base font-bold sm:mt-1 sm:text-2xl">Video conversation</h2>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="dark">
+        <div className="flex min-w-0 shrink-0 items-center justify-end gap-1.5 sm:gap-2">
+          <Badge variant="dark" className="hidden max-w-[10rem] sm:inline-flex lg:max-w-full">
             {isConnected ? <SignalHigh className="h-3.5 w-3.5 text-teal-300" /> : <Radio className="h-3.5 w-3.5 text-indigo-300" />}
-            WebRTC {rtcConnectionState}
+            <span className="truncate">WebRTC {rtcConnectionState}</span>
           </Badge>
-          <Button type="button" variant="subtle" size="sm" onClick={() => setIsCinemaLayout((value) => !value)}>
+          <span className={cn("h-2.5 w-2.5 rounded-full sm:hidden", isConnected ? "bg-teal-300 shadow-[0_0_14px_rgba(94,234,212,0.9)]" : "bg-indigo-300")} aria-label={`WebRTC ${rtcConnectionState}`} />
+          <Button type="button" variant="subtle" size="sm" className="h-9 px-2.5 sm:h-9 sm:px-3" onClick={() => setIsCinemaLayout((value) => !value)}>
             {isCinemaLayout ? <Columns2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-            {isCinemaLayout ? "Split" : "Maximize"}
+            <span className="hidden sm:inline">{isCinemaLayout ? "Split" : "Maximize"}</span>
           </Button>
-          <Button type="button" variant="subtle" size="sm" onClick={toggleFullscreen}>
+          <Button type="button" variant="subtle" size="sm" className="h-9 px-2.5 sm:h-9 sm:px-3" onClick={toggleFullscreen}>
             {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-            {isFullscreen ? "Exit full" : "Full screen"}
+            <span className="hidden sm:inline">{isFullscreen ? "Exit full" : "Full screen"}</span>
           </Button>
         </div>
       </div>
 
-      <div className={cn("min-h-0 flex-1", isImmersive ? "relative" : "grid gap-3 lg:grid-cols-[minmax(0,1.45fr)_minmax(15rem,0.68fr)]")}>
-        <VideoTile stream={remoteStream} label="Stranger" className={cn("min-h-0", isImmersive ? "absolute inset-0 h-full w-full" : "h-full")} />
-        <VideoTile
-          stream={localStream}
-          label="You"
-          muted
-          local
-          className={cn(
-            "min-h-0",
-            isImmersive
-              ? "absolute bottom-3 right-3 z-20 h-28 w-40 border-teal-300/50 shadow-[0_20px_60px_rgba(0,0,0,0.42)] sm:h-36 sm:w-56 lg:h-44 lg:w-72"
-              : "h-full"
-          )}
-        />
-      </div>
-
-      <MediaControls />
+      {isImmersive ? (
+        <div className="relative min-h-0 flex-1 overflow-hidden rounded-lg border border-white/10 bg-slate-950">
+          <VideoTile stream={remoteStream} label="Stranger" className="absolute inset-0 h-full w-full rounded-none border-0" />
+          <VideoTile stream={localStream} label="You" muted local fit="contain" className={localPreviewClass} />
+          <div className="pointer-events-none absolute inset-x-3 bottom-3 z-30 flex justify-center sm:bottom-4">
+            <MediaControls compact className="pointer-events-auto w-full max-w-[38rem] bg-slate-900/88 px-3 shadow-[0_18px_60px_rgba(0,0,0,0.38)] ring-1 ring-white/10" />
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-2 gap-2 sm:gap-3 md:grid-cols-2 md:grid-rows-1">
+            <VideoTile stream={remoteStream} label="Stranger" fit="contain" className="h-full min-h-0" />
+            <VideoTile stream={localStream} label="You" muted local fit="contain" className="h-full min-h-0" />
+          </div>
+          <MediaControls compact />
+        </>
+      )}
     </section>
   );
 }
