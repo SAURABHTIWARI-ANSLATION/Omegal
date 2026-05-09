@@ -4,8 +4,8 @@ import ConnectionStatus from "../common/ConnectionStatus.jsx";
 
 export default function AppShell({ children }) {
   return (
-    <div className="min-h-screen bg-[#f6f8fb] text-slate-950">
-      <header className="fixed inset-x-0 top-0 z-40 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
+    <div className="min-h-screen bg-[#eef3f8] text-slate-950">
+      <header className="fixed inset-x-0 top-0 z-40 border-b border-slate-200/80 bg-white/95 backdrop-blur-xl">
         <nav className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           <Link to="/" className="inline-flex items-center gap-3" aria-label="Omegal home">
             <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-950 text-white">
