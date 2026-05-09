@@ -5,21 +5,115 @@
 import queueService from '../services/queueService.js';
 import roomService from '../services/roomService.js';
 import { generateRoomId } from '../utils/roomIdGenerator.js';
+import { consumeRateLimit } from '../utils/rateLimiter.js';
 import {
-    isValidSocketId,
     isValidMessage,
+    isValidUserData,
     isValidOffer,
     isValidAnswer,
-    isValidICECandidate
+    isValidICECandidate,
+    normalizeMessage,
+    sanitizeUserData
 } from '../utils/validations.js';
+
+const SOCKET_EVENT_LIMITS = {
+    join_queue: { windowMs: 60_000, max: 12 },
+    leave_queue: { windowMs: 60_000, max: 20 },
+    disconnect_room: { windowMs: 60_000, max: 20 },
+    send_message: { windowMs: 10_000, max: 20 },
+    send_offer: { windowMs: 60_000, max: 10 },
+    send_answer: { windowMs: 60_000, max: 10 },
+    send_ice_candidate: { windowMs: 10_000, max: 120 },
+    default: { windowMs: 10_000, max: 80 }
+};
+
+const isAuthorizedAdmin = (socket) => {
+    const adminToken = process.env.ADMIN_TOKEN;
+    if (!adminToken) return false;
+
+    const suppliedToken = socket.handshake.auth?.adminToken || socket.handshake.headers?.['x-admin-token'];
+    return suppliedToken === adminToken;
+};
+
+const ROOM_CLEANUP_INTERVAL_MS = Number(process.env.ROOM_CLEANUP_INTERVAL_MS || 5 * 60 * 1000);
+let roomCleanupTimer = null;
+
+const getSocketById = (io, socketId) => io.of('/').sockets.get(socketId) || null;
+
+const emitQueueSize = (io) => {
+    io.emit('queue_size_updated', {
+        queueSize: queueService.getQueueSize()
+    });
+};
+
+const getRoomContext = (socket) => {
+    const room = roomService.getRoomByUser(socket.id);
+    if (!room) {
+        socket.emit('error', { message: 'Not in any room' });
+        return null;
+    }
+
+    const partnerId = roomService.getPartner(room.roomId, socket.id);
+    if (!partnerId) {
+        socket.emit('error', { message: 'Partner not available' });
+        return null;
+    }
+
+    return { room, roomId: room.roomId, partnerId };
+};
+
+const notifyRoomClosed = (io, room, message) => {
+    [room.user1.socketId, room.user2.socketId].forEach((socketId) => {
+        getSocketById(io, socketId)?.leave(room.roomId);
+        queueService.removeUser(socketId);
+        io.to(socketId).emit('partner_disconnected', {
+            message,
+            roomId: room.roomId
+        });
+    });
+};
+
+const startRoomCleanup = (io) => {
+    if (roomCleanupTimer || ROOM_CLEANUP_INTERVAL_MS <= 0) return;
+
+    roomCleanupTimer = setInterval(() => {
+        const expiredRooms = roomService.closeExpiredRooms();
+        if (expiredRooms.length === 0) return;
+
+        expiredRooms.forEach((room) => {
+            notifyRoomClosed(io, room, 'Room expired due to inactivity');
+        });
+        emitQueueSize(io);
+    }, ROOM_CLEANUP_INTERVAL_MS);
+
+    roomCleanupTimer.unref?.();
+};
 
 /**
  * Register all socket event handlers
  * @param {Server} io - Socket.IO server instance
  */
 export const registerSocketControllers = (io) => {
+    startRoomCleanup(io);
+
     io.on('connection', (socket) => {
         console.log(`User connected: ${socket.id}`);
+
+        socket.use((packet, next) => {
+            const [eventName] = packet;
+            const limit = SOCKET_EVENT_LIMITS[eventName] || SOCKET_EVENT_LIMITS.default;
+            const result = consumeRateLimit(`socket:${socket.id}:${eventName}`, limit);
+
+            if (!result.allowed) {
+                socket.emit('error', {
+                    message: 'Too many requests',
+                    retryAfterMs: result.retryAfterMs
+                });
+                return;
+            }
+
+            next();
+        });
 
         // Emit connection success
         socket.emit('connection_success', {
@@ -34,22 +128,35 @@ export const registerSocketControllers = (io) => {
          */
         socket.on('join_queue', (data) => {
             try {
-                const userData = data?.userData || {};
+                const rawUserData = data?.userData || {};
+                if (!isValidUserData(rawUserData)) {
+                    socket.emit('error', { message: 'Invalid user data' });
+                    return;
+                }
+
+                if (roomService.getRoomByUser(socket.id)) {
+                    handleUserDisconnect(io, socket.id, { reason: 'joining_queue' });
+                }
+
+                const userData = sanitizeUserData(rawUserData);
 
                 // Add user to queue
-                queueService.addToQueue(socket.id, userData);
+                const queuedUser = queueService.addToQueue(socket.id, userData);
+                if (!queuedUser) {
+                    socket.emit('error', { message: 'Unable to join queue' });
+                    return;
+                }
 
                 // Emit queue joined confirmation
+                const queuePosition = queueService.getQueuePosition(socket.id);
                 socket.emit('queue_joined', {
                     message: 'You have joined the queue',
-                    queuePosition: queueService.waitingQueue.findIndex(u => u.socketId === socket.id) + 1,
+                    queuePosition,
                     queueSize: queueService.getQueueSize()
                 });
 
                 // Broadcast queue size to all connected users
-                io.emit('queue_size_updated', {
-                    queueSize: queueService.getQueueSize()
-                });
+                emitQueueSize(io);
 
                 // Attempt to pair users
                 checkAndPairUsers(io);
@@ -68,9 +175,7 @@ export const registerSocketControllers = (io) => {
                 if (queueService.removeFromQueue(socket.id)) {
                     socket.emit('queue_left', { message: 'You have left the queue' });
 
-                    io.emit('queue_size_updated', {
-                        queueSize: queueService.getQueueSize()
-                    });
+                    emitQueueSize(io);
                 }
             } catch (error) {
                 console.error('Error in leave_queue:', error.message);
@@ -86,9 +191,7 @@ export const registerSocketControllers = (io) => {
             try {
                 socket.emit('queue_status', {
                     queueSize: queueService.getQueueSize(),
-                    userQueuePosition: queueService.isInQueue(socket.id)
-                        ? queueService.waitingQueue.findIndex(u => u.socketId === socket.id) + 1
-                        : null,
+                    userQueuePosition: queueService.getQueuePosition(socket.id),
                     stats: queueService.getStats()
                 });
             } catch (error) {
@@ -108,29 +211,25 @@ export const registerSocketControllers = (io) => {
                     socket.emit('error', { message: 'Invalid message' });
                     return;
                 }
+                const message = normalizeMessage(data.message);
 
-                const room = roomService.getRoomByUser(socket.id);
-                if (!room) {
-                    socket.emit('error', { message: 'Not in any room' });
-                    return;
-                }
+                const context = getRoomContext(socket);
+                if (!context) return;
 
                 // Store message
-                roomService.addMessage(room.roomId, socket.id, data.message);
-
-                // Get partner socket ID
-                const partner = roomService.getPartner(room.roomId, socket.id);
+                roomService.addMessage(context.roomId, socket.id, message);
 
                 // Send message to partner
-                io.to(partner).emit('receive_message', {
-                    message: data.message,
+                io.to(context.partnerId).emit('receive_message', {
+                    message,
                     senderId: socket.id,
                     timestamp: Date.now()
                 });
 
                 // Send confirmation to sender
                 socket.emit('message_sent', {
-                    message: data.message,
+                    clientMessageId: data.clientMessageId || null,
+                    message,
                     timestamp: Date.now()
                 });
             } catch (error) {
@@ -152,25 +251,19 @@ export const registerSocketControllers = (io) => {
                     return;
                 }
 
-                const room = roomService.getRoomByUser(socket.id);
-                if (!room) {
-                    socket.emit('error', { message: 'Not in any room' });
-                    return;
-                }
+                const context = getRoomContext(socket);
+                if (!context) return;
 
                 // Store offer
-                roomService.storeOffer(room.roomId, socket.id, data.offer);
-
-                // Get partner
-                const partner = roomService.getPartner(room.roomId, socket.id);
+                roomService.storeOffer(context.roomId, socket.id, data.offer);
 
                 // Send offer to partner
-                io.to(partner).emit('receive_offer', {
+                io.to(context.partnerId).emit('receive_offer', {
                     offer: data.offer,
                     senderId: socket.id
                 });
 
-                console.log(`📤 Offer sent from ${socket.id} to ${partner}`);
+                console.log(`📤 Offer sent from ${socket.id} to ${context.partnerId}`);
             } catch (error) {
                 console.error('Error in send_offer:', error.message);
                 socket.emit('error', { message: 'Error sending offer' });
@@ -189,25 +282,19 @@ export const registerSocketControllers = (io) => {
                     return;
                 }
 
-                const room = roomService.getRoomByUser(socket.id);
-                if (!room) {
-                    socket.emit('error', { message: 'Not in any room' });
-                    return;
-                }
+                const context = getRoomContext(socket);
+                if (!context) return;
 
                 // Store answer
-                roomService.storeAnswer(room.roomId, socket.id, data.answer);
-
-                // Get partner
-                const partner = roomService.getPartner(room.roomId, socket.id);
+                roomService.storeAnswer(context.roomId, socket.id, data.answer);
 
                 // Send answer to partner
-                io.to(partner).emit('receive_answer', {
+                io.to(context.partnerId).emit('receive_answer', {
                     answer: data.answer,
                     senderId: socket.id
                 });
 
-                console.log(`📥 Answer sent from ${socket.id} to ${partner}`);
+                console.log(`📥 Answer sent from ${socket.id} to ${context.partnerId}`);
             } catch (error) {
                 console.error('Error in send_answer:', error.message);
                 socket.emit('error', { message: 'Error sending answer' });
@@ -226,25 +313,19 @@ export const registerSocketControllers = (io) => {
                     return;
                 }
 
-                const room = roomService.getRoomByUser(socket.id);
-                if (!room) {
-                    socket.emit('error', { message: 'Not in any room' });
-                    return;
-                }
+                const context = getRoomContext(socket);
+                if (!context) return;
 
                 // Store ICE candidate
-                roomService.addICECandidate(room.roomId, data.candidate);
-
-                // Get partner
-                const partner = roomService.getPartner(room.roomId, socket.id);
+                roomService.addICECandidate(context.roomId, socket.id, data.candidate);
 
                 // Send candidate to partner
-                io.to(partner).emit('receive_ice_candidate', {
+                io.to(context.partnerId).emit('receive_ice_candidate', {
                     candidate: data.candidate,
                     senderId: socket.id
                 });
 
-                console.log(`❄️ ICE candidate sent from ${socket.id} to ${partner}`);
+                console.log(`❄️ ICE candidate sent from ${socket.id} to ${context.partnerId}`);
             } catch (error) {
                 console.error('Error in send_ice_candidate:', error.message);
                 socket.emit('error', { message: 'Error sending ICE candidate' });
@@ -281,7 +362,12 @@ export const registerSocketControllers = (io) => {
          */
         socket.on('get_room_stats', () => {
             try {
-                socket.emit('room_stats', roomService.getStats());
+                if (!isAuthorizedAdmin(socket)) {
+                    socket.emit('error', { message: 'Unauthorized' });
+                    return;
+                }
+
+                socket.emit('room_stats', roomService.getStats({ includeRooms: true }));
             } catch (error) {
                 console.error('Error in get_room_stats:', error.message);
             }
@@ -291,7 +377,7 @@ export const registerSocketControllers = (io) => {
          * Disconnect event - Clean up when user leaves
          */
         socket.on('disconnect', () => {
-            handleUserDisconnect(io, socket.id);
+            handleUserDisconnect(io, socket.id, { reason: 'socket_disconnect' });
         });
 
         /**
@@ -299,7 +385,7 @@ export const registerSocketControllers = (io) => {
          * Event: disconnect_room
          */
         socket.on('disconnect_room', () => {
-            handleUserDisconnect(io, socket.id);
+            handleUserDisconnect(io, socket.id, { reason: 'manual_disconnect' });
         });
     });
 };
@@ -309,28 +395,26 @@ export const registerSocketControllers = (io) => {
  * @param {Server} io - Socket.IO server
  * @param {string} socketId - Disconnected user's socket ID
  */
-const handleUserDisconnect = (io, socketId) => {
+const handleUserDisconnect = (io, socketId, options = {}) => {
+    const { reason = 'disconnect' } = options;
+    const room = roomService.getRoomByUser(socketId);
+    const removedQueueUser = queueService.removeUser(socketId);
+    if (!room && !removedQueueUser) return;
+
     console.log(`🔴 User disconnected: ${socketId}`);
 
-    // Check if user was in queue
-    if (queueService.isInQueue(socketId)) {
-        queueService.removeFromQueue(socketId);
-        io.emit('queue_size_updated', {
-            queueSize: queueService.getQueueSize()
-        });
-    }
-
-    // Check if user was in a room
-    const room = roomService.getRoomByUser(socketId);
     if (room) {
         const partner = roomService.getPartner(room.roomId, socketId);
+        getSocketById(io, socketId)?.leave(room.roomId);
 
         // Notify partner about disconnection
         if (partner) {
+            getSocketById(io, partner)?.leave(room.roomId);
             io.to(partner).emit('partner_disconnected', {
-                message: 'Your partner has disconnected',
+                message: reason === 'joining_queue' ? 'Your partner is searching for a new chat' : 'Your partner has disconnected',
                 roomId: room.roomId
             });
+            queueService.removeUser(partner);
         }
 
         // Close room
@@ -338,9 +422,7 @@ const handleUserDisconnect = (io, socketId) => {
     }
 
     // Update stats
-    io.emit('queue_size_updated', {
-        queueSize: queueService.getQueueSize()
-    });
+    emitQueueSize(io);
 };
 
 /**
@@ -348,11 +430,25 @@ const handleUserDisconnect = (io, socketId) => {
  * @param {Server} io - Socket.IO server
  */
 const checkAndPairUsers = (io) => {
-    const pair = queueService.getPair();
+    const removedStaleUsers = queueService.pruneUnavailableUsers((socketId) => Boolean(getSocketById(io, socketId)));
+    let pairedRooms = 0;
 
-    if (pair) {
+    while (queueService.getQueueSize() >= 2) {
+        const pair = queueService.getPair();
+        if (!pair) break;
+
         const [user1, user2] = pair;
         const roomId = generateRoomId();
+        const socket1 = getSocketById(io, user1.socketId);
+        const socket2 = getSocketById(io, user2.socketId);
+
+        if (!socket1 || !socket2) {
+            if (socket1) queueService.addToQueue(user1.socketId, user1);
+            if (socket2) queueService.addToQueue(user2.socketId, user2);
+            if (!socket1) queueService.removeUser(user1.socketId);
+            if (!socket2) queueService.removeUser(user2.socketId);
+            continue;
+        }
 
         // Create room
         roomService.createRoom(
@@ -364,11 +460,8 @@ const checkAndPairUsers = (io) => {
         );
 
         // Join both users to a socket.io room
-        const room = io.of('/').sockets.get(user1.socketId);
-        const room2 = io.of('/').sockets.get(user2.socketId);
-
-        if (room) room.join(roomId);
-        if (room2) room2.join(roomId);
+        socket1.join(roomId);
+        socket2.join(roomId);
 
         // Notify both users about pairing
         io.to(roomId).emit('user_matched', {
@@ -394,14 +487,11 @@ const checkAndPairUsers = (io) => {
             }
         });
 
-        // Broadcast updated queue size
-        io.emit('queue_size_updated', {
-            queueSize: queueService.getQueueSize()
-        });
-
         console.log(`Users paired in room: ${roomId}`);
+        pairedRooms += 1;
+    }
 
-        // Continue checking for more pairs
-        checkAndPairUsers(io);
+    if (removedStaleUsers > 0 || pairedRooms > 0) {
+        emitQueueSize(io);
     }
 };

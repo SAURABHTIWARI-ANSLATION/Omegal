@@ -54,7 +54,7 @@ export function useQueue({ listen = false, onMatched } = {}) {
         useAppStore.getState().setSocketStatus(SOCKET_STATUS.CONNECTING);
       }
 
-      socket.emit(EVENTS.JOIN_QUEUE);
+      socket.emit(EVENTS.JOIN_QUEUE, { userData: { chatMode: mode } });
       return true;
     },
     [prepareVideo]
@@ -62,6 +62,7 @@ export function useQueue({ listen = false, onMatched } = {}) {
 
   const nextPartner = useCallback(async () => {
     const state = useAppStore.getState();
+    socketService.emit(EVENTS.DISCONNECT_ROOM);
     closePeerConnection();
     stopStream(state.remoteStream);
     state.setRemoteStream(null);

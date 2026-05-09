@@ -1,6 +1,8 @@
 export const EVENTS = {
   CONNECTION_SUCCESS: "connection_success",
   JOIN_QUEUE: "join_queue",
+  LEAVE_QUEUE: "leave_queue",
+  DISCONNECT_ROOM: "disconnect_room",
   QUEUE_SIZE_UPDATED: "queue_size_updated",
   USER_MATCHED: "user_matched",
   MATCHED: "matched",

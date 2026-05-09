@@ -9,6 +9,9 @@ class RoomService {
         this.rooms = new Map();
         // Map to track user's room: socketId -> roomId
         this.userRoomMap = new Map();
+        this.maxMessagesPerRoom = Number(process.env.MAX_ROOM_MESSAGES || 100);
+        this.maxIceCandidatesPerRoom = Number(process.env.MAX_ROOM_ICE_CANDIDATES || 80);
+        this.maxRoomAgeMs = Number(process.env.MAX_ROOM_AGE_MS || 2 * 60 * 60 * 1000);
     }
 
     /**
@@ -21,6 +24,7 @@ class RoomService {
      * @returns {Object} Created room object
      */
     createRoom(roomId, user1SocketId, user2SocketId, user1Data, user2Data) {
+        const now = Date.now();
         const room = {
             roomId,
             user1: {
@@ -31,11 +35,14 @@ class RoomService {
                 socketId: user2SocketId,
                 ...user2Data
             },
-            createdAt: Date.now(),
+            createdAt: now,
+            lastActivityAt: now,
             status: 'active',
             messages: [],
             webrtcState: {
                 user1Offer: null,
+                user2Offer: null,
+                user1Answer: null,
                 user2Answer: null,
                 iceCandidates: []
             }
@@ -65,7 +72,32 @@ class RoomService {
      */
     getRoomByUser(socketId) {
         const roomId = this.userRoomMap.get(socketId);
-        return roomId ? this.rooms.get(roomId) : null;
+        if (!roomId) return null;
+
+        const room = this.rooms.get(roomId);
+        if (!room) {
+            this.userRoomMap.delete(socketId);
+            return null;
+        }
+
+        return room;
+    }
+
+    getParticipantKey(room, socketId) {
+        if (!room) return null;
+        if (room.user1.socketId === socketId) return 'user1';
+        if (room.user2.socketId === socketId) return 'user2';
+        return null;
+    }
+
+    isParticipant(roomId, socketId) {
+        return Boolean(this.getParticipantKey(this.getRoom(roomId), socketId));
+    }
+
+    touchRoom(room) {
+        if (room) {
+            room.lastActivityAt = Date.now();
+        }
     }
 
     /**
@@ -95,14 +127,20 @@ class RoomService {
      */
     addMessage(roomId, socketId, message) {
         const room = this.getRoom(roomId);
-        if (room) {
+        if (room && this.isParticipant(roomId, socketId)) {
             room.messages.push({
                 socketId,
-                message,
+                message: message.trim().slice(0, 1000),
                 timestamp: Date.now()
             });
+            if (room.messages.length > this.maxMessagesPerRoom) {
+                room.messages.splice(0, room.messages.length - this.maxMessagesPerRoom);
+            }
+            this.touchRoom(room);
             console.log(`💬 Message added to room ${roomId}`);
+            return true;
         }
+        return false;
     }
 
     /**
@@ -113,14 +151,18 @@ class RoomService {
      */
     storeOffer(roomId, socketId, offer) {
         const room = this.getRoom(roomId);
-        if (room) {
-            if (room.user1.socketId === socketId) {
+        const participantKey = this.getParticipantKey(room, socketId);
+        if (room && participantKey) {
+            if (participantKey === 'user1') {
                 room.webrtcState.user1Offer = offer;
             } else {
                 room.webrtcState.user2Offer = offer;
             }
+            this.touchRoom(room);
             console.log(`📤 Offer stored for room ${roomId}`);
+            return true;
         }
+        return false;
     }
 
     /**
@@ -131,14 +173,18 @@ class RoomService {
      */
     storeAnswer(roomId, socketId, answer) {
         const room = this.getRoom(roomId);
-        if (room) {
-            if (room.user1.socketId === socketId) {
+        const participantKey = this.getParticipantKey(room, socketId);
+        if (room && participantKey) {
+            if (participantKey === 'user1') {
                 room.webrtcState.user1Answer = answer;
             } else {
                 room.webrtcState.user2Answer = answer;
             }
+            this.touchRoom(room);
             console.log(`📥 Answer stored for room ${roomId}`);
+            return true;
         }
+        return false;
     }
 
     /**
@@ -146,14 +192,20 @@ class RoomService {
      * @param {string} roomId - Room ID
      * @param {Object} candidate - ICE candidate
      */
-    addICECandidate(roomId, candidate) {
+    addICECandidate(roomId, socketId, candidate) {
         const room = this.getRoom(roomId);
-        if (room) {
+        if (room && this.isParticipant(roomId, socketId)) {
             room.webrtcState.iceCandidates.push({
                 ...candidate,
                 timestamp: Date.now()
             });
+            if (room.webrtcState.iceCandidates.length > this.maxIceCandidatesPerRoom) {
+                room.webrtcState.iceCandidates.splice(0, room.webrtcState.iceCandidates.length - this.maxIceCandidatesPerRoom);
+            }
+            this.touchRoom(room);
+            return true;
         }
+        return false;
     }
 
     /**
@@ -171,6 +223,19 @@ class RoomService {
             return true;
         }
         return false;
+    }
+
+    closeExpiredRooms(now = Date.now()) {
+        const expiredRooms = [];
+
+        for (const room of this.rooms.values()) {
+            if (now - room.lastActivityAt >= this.maxRoomAgeMs) {
+                expiredRooms.push(room);
+            }
+        }
+
+        expiredRooms.forEach((room) => this.closeRoom(room.roomId));
+        return expiredRooms;
     }
 
     /**
@@ -194,13 +259,22 @@ class RoomService {
      * Get room statistics
      * @returns {Object} Statistics
      */
-    getStats() {
-        return {
+    getStats({ includeRooms = false } = {}) {
+        const stats = {
             totalRooms: this.rooms.size,
-            totalUsers: this.userRoomMap.size,
+            totalUsers: this.userRoomMap.size
+        };
+
+        if (!includeRooms) {
+            return stats;
+        }
+
+        return {
+            ...stats,
             rooms: Array.from(this.rooms.values()).map(room => ({
                 roomId: room.roomId,
                 createdAt: room.createdAt,
+                lastActivityAt: room.lastActivityAt,
                 user1: room.user1.socketId,
                 user2: room.user2.socketId
             }))

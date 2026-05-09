@@ -1,15 +1,14 @@
 /**
  * Utility to generate unique room IDs
  */
+import { randomUUID } from 'crypto';
 
 /**
  * Generate a unique room ID
  * @returns {string} Unique room ID
  */
 export const generateRoomId = () => {
-    const timestamp = Date.now().toString(36);
-    const randomStr = Math.random().toString(36).substring(2, 15);
-    return `room_${timestamp}_${randomStr}`;
+    return `room_${randomUUID().replace(/-/g, '')}`;
 };
 
 /**
@@ -17,9 +16,7 @@ export const generateRoomId = () => {
  * @returns {string} Unique user ID
  */
 export const generateUserId = () => {
-    const timestamp = Date.now().toString(36);
-    const randomStr = Math.random().toString(36).substring(2, 15);
-    return `user_${timestamp}_${randomStr}`;
+    return `user_${randomUUID().replace(/-/g, '')}`;
 };
 
 /**

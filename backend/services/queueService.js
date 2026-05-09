@@ -14,10 +14,13 @@ class QueueService {
      * @returns {Object} User object added to queue
      */
     addToQueue(socketId, userData) {
-        // Check if user already in queue
-        if (this.userStatus.has(socketId)) {
-            console.warn(`User ${socketId} already in queue`);
-            return null;
+        const existingStatus = this.userStatus.get(socketId);
+        if (existingStatus === 'waiting') {
+            return this.waitingQueue.find(user => user.socketId === socketId) || null;
+        }
+
+        if (existingStatus) {
+            this.userStatus.delete(socketId);
         }
 
         const userObject = {
@@ -51,6 +54,39 @@ class QueueService {
 
         console.warn(`User ${socketId} not found in queue`);
         return false;
+    }
+
+    getQueuePosition(socketId) {
+        const index = this.waitingQueue.findIndex(user => user.socketId === socketId);
+        return index === -1 ? null : index + 1;
+    }
+
+    /**
+     * Remove all queue status for a user, whether waiting or paired.
+     * @param {string} socketId - Socket ID of the user
+     * @returns {boolean} True if any state was removed
+     */
+    removeUser(socketId) {
+        const index = this.waitingQueue.findIndex(user => user.socketId === socketId);
+        const removedFromQueue = index !== -1;
+        if (removedFromQueue) {
+            this.waitingQueue.splice(index, 1);
+        }
+        const removedStatus = this.userStatus.delete(socketId);
+        return removedFromQueue || removedStatus;
+    }
+
+    pruneUnavailableUsers(isAvailable) {
+        const before = this.waitingQueue.length;
+        this.waitingQueue = this.waitingQueue.filter((user) => {
+            const keep = isAvailable(user.socketId);
+            if (!keep) {
+                this.userStatus.delete(user.socketId);
+            }
+            return keep;
+        });
+
+        return before - this.waitingQueue.length;
     }
 
     /**
