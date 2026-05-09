@@ -335,6 +335,34 @@ function ProofStrip() {
   );
 }
 
+function ProductNetworkBanner() {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 18 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: "-120px" }}
+      transition={{ duration: 0.45 }}
+      className="mt-10 grid overflow-hidden rounded-lg border border-white/[0.12] bg-white/[0.06] shadow-2xl shadow-black/30 lg:grid-cols-[1fr_0.68fr]"
+    >
+      <div className="p-5 sm:p-7">
+        <StatusPill className="border-white/[0.12] bg-white/[0.08] text-slate-200">
+          <Globe2 className="h-3.5 w-3.5 text-teal-200" />
+          Live interaction map
+        </StatusPill>
+        <h3 className="mt-5 max-w-2xl text-2xl font-bold leading-tight text-white sm:text-4xl">
+          A social product should look connected before anyone clicks.
+        </h3>
+        <p className="mt-4 max-w-2xl leading-8 text-slate-300">
+          The global network visual gives the page a real-time social discovery feel while still matching the queue, room, and peer model behind Omegal.
+        </p>
+      </div>
+      <div className="relative min-h-72 overflow-hidden border-t border-white/[0.12] bg-slate-950/[0.45] lg:border-l lg:border-t-0">
+        <img loading="lazy" className="h-full w-full object-cover" src="/assets/illustrations/global-network.svg" alt="Global live users network illustration" />
+      </div>
+    </motion.div>
+  );
+}
+
 function VisualStory({ panel, index }) {
   const Icon = panel.icon;
   const reverse = index % 2 === 1;
@@ -439,7 +467,21 @@ function HowItWorks() {
           </p>
         </div>
 
-        <div className="mt-10 grid gap-4 lg:grid-cols-4">
+        <div className="mt-10 grid gap-5 lg:grid-cols-[1.1fr_0.9fr] lg:items-stretch">
+          <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl">
+            <img loading="lazy" className="h-full min-h-80 w-full object-cover" src="/assets/illustrations/room-flow-board.svg" alt="Queue to room to peer flow illustration" />
+          </div>
+          <div className="grid gap-4">
+            {["FIFO matchmaking", "Clean rejoin handling", "Direct WebRTC media"].map((item) => (
+              <div key={item} className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+                <CheckCircle2 className="h-5 w-5 text-teal-600" />
+                <p className="mt-4 text-lg font-bold">{item}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-6 grid gap-4 lg:grid-cols-4">
           {flowSteps.map(({ title, body, icon: Icon }, index) => (
             <motion.div
               key={title}
@@ -490,6 +532,12 @@ function InteractionShowcase({ begin, startingMode }) {
         <div className="relative min-h-[30rem] overflow-hidden rounded-lg border border-white/[0.12] bg-white/[0.06] p-4 shadow-2xl shadow-black/30">
           <img className="absolute -right-12 -top-16 h-72 w-72 opacity-70" src="/assets/mockups/connection-ring.svg" alt="" loading="lazy" />
           <div className="relative grid gap-4">
+            <img
+              loading="lazy"
+              className="rounded-lg border border-white/[0.12] shadow-2xl shadow-black/20"
+              src="/assets/illustrations/chat-pulse.svg"
+              alt="Live text room chat pulse illustration"
+            />
             <div className="rounded-lg border border-white/[0.12] bg-slate-950/[0.72] p-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -673,6 +721,7 @@ export default function Home() {
               body="Every section exists to make users feel the product is real, safe, alive, and worth trying."
               align="center"
             />
+            <ProductNetworkBanner />
             <div className="mt-16 grid gap-16">
               {storyPanels.map((panel, index) => (
                 <VisualStory key={panel.title} panel={panel} index={index} />
@@ -693,12 +742,20 @@ export default function Home() {
                 title="Privacy should be part of the visual product, not an afterthought."
                 body="The page makes room safety visible with participant-scoped signaling, clear states, and trust cues before users enter the room."
               />
-              <img
-                loading="lazy"
-                className="mt-8 hidden h-32 w-32 rounded-lg border border-white/[0.12] bg-white/[0.06] p-3 shadow-2xl shadow-black/20 md:block"
-                src="/assets/illustrations/signal-glass.svg"
-                alt="Abstract secure signal illustration"
-              />
+              <div className="mt-8 grid gap-4 sm:grid-cols-[1fr_auto]">
+                <img
+                  loading="lazy"
+                  className="rounded-lg border border-white/[0.12] bg-white/[0.06] shadow-2xl shadow-black/20"
+                  src="/assets/illustrations/moderation-panel.svg"
+                  alt="Omegal moderation and private signaling illustration"
+                />
+                <img
+                  loading="lazy"
+                  className="hidden h-32 w-32 rounded-lg border border-white/[0.12] bg-white/[0.06] p-3 shadow-2xl shadow-black/20 sm:block"
+                  src="/assets/illustrations/signal-glass.svg"
+                  alt="Abstract secure signal illustration"
+                />
+              </div>
             </div>
             <div className="grid gap-4 md:grid-cols-2">
               {[

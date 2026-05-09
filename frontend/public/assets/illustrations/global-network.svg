@@ -1,0 +1,37 @@
+<svg width="680" height="430" viewBox="0 0 680 430" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="globeLine" x1="76" x2="610" y1="80" y2="340" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#5EEAD4"/>
+      <stop offset=".52" stop-color="#818CF8"/>
+      <stop offset="1" stop-color="#FB7185"/>
+    </linearGradient>
+    <filter id="softGlow" x="-80" y="-80" width="840" height="590" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse">
+      <feGaussianBlur stdDeviation="14" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <rect width="680" height="430" rx="28" fill="#080C18"/>
+  <path d="M96 314c109-119 214-169 315-151 74 13 110 55 176 18" stroke="url(#globeLine)" stroke-width="6" stroke-linecap="round" filter="url(#softGlow)"/>
+  <path d="M112 176c118 92 220 120 306 85 76-31 103-103 159-117" stroke="url(#globeLine)" stroke-width="4" stroke-linecap="round" opacity=".42"/>
+  <path d="M89 234h502M340 58v316M171 106c89 57 233 58 338 1M171 325c89-57 233-58 338-1" stroke="white" stroke-opacity=".08" stroke-width="2"/>
+  <ellipse cx="340" cy="215" rx="252" ry="158" stroke="white" stroke-opacity=".12" stroke-width="2"/>
+  <ellipse cx="340" cy="215" rx="156" ry="158" stroke="white" stroke-opacity=".08" stroke-width="2"/>
+  <circle cx="96" cy="314" r="15" fill="#14B8A6"/>
+  <circle cx="287" cy="173" r="11" fill="#F59E0B"/>
+  <circle cx="432" cy="263" r="13" fill="#818CF8"/>
+  <circle cx="587" cy="181" r="15" fill="#FB7185"/>
+  <g>
+    <rect x="72" y="64" width="150" height="56" rx="12" fill="white" fill-opacity=".09" stroke="white" stroke-opacity=".12"/>
+    <circle cx="100" cy="92" r="7" fill="#5EEAD4"/>
+    <text x="118" y="88" fill="#F8FAFC" font-family="Inter, Arial" font-size="14" font-weight="700">Live users</text>
+    <text x="118" y="107" fill="#CBD5E1" font-family="Inter, Arial" font-size="12">online now</text>
+  </g>
+  <g>
+    <rect x="438" y="292" width="168" height="58" rx="12" fill="white" fill-opacity=".09" stroke="white" stroke-opacity=".12"/>
+    <text x="462" y="317" fill="#F8FAFC" font-family="Inter, Arial" font-size="14" font-weight="700">Global matching</text>
+    <text x="462" y="336" fill="#CBD5E1" font-family="Inter, Arial" font-size="12">queue to private room</text>
+  </g>
+</svg>

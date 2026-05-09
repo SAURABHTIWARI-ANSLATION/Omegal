@@ -1,0 +1,33 @@
+<svg width="760" height="460" viewBox="0 0 760 460" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="flow" x1="70" x2="692" y1="90" y2="360" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#14B8A6"/>
+      <stop offset=".5" stop-color="#6366F1"/>
+      <stop offset="1" stop-color="#F43F5E"/>
+    </linearGradient>
+  </defs>
+  <rect width="760" height="460" rx="30" fill="#F8FAFC"/>
+  <rect x="28" y="28" width="704" height="404" rx="22" fill="#0F172A"/>
+  <path d="M88 230h584" stroke="url(#flow)" stroke-width="7" stroke-linecap="round"/>
+  <path d="M213 230c47-66 101-74 163-24 54 44 103 51 159 0" stroke="white" stroke-opacity=".18" stroke-width="3" stroke-linecap="round"/>
+  <g>
+    <rect x="70" y="140" width="150" height="180" rx="16" fill="white" fill-opacity=".08" stroke="white" stroke-opacity=".12"/>
+    <circle cx="145" cy="202" r="28" fill="#14B8A6" fill-opacity=".18" stroke="#5EEAD4" stroke-width="3"/>
+    <text x="105" y="265" fill="#F8FAFC" font-family="Inter, Arial" font-size="22" font-weight="800">Queue</text>
+    <text x="98" y="292" fill="#CBD5E1" font-family="Inter, Arial" font-size="13">clean waiting state</text>
+  </g>
+  <g>
+    <rect x="305" y="116" width="150" height="228" rx="16" fill="white" fill-opacity=".1" stroke="#818CF8" stroke-opacity=".5"/>
+    <circle cx="380" cy="202" r="30" fill="#6366F1" fill-opacity=".22" stroke="#A5B4FC" stroke-width="3"/>
+    <text x="337" y="265" fill="#F8FAFC" font-family="Inter, Arial" font-size="22" font-weight="800">Room</text>
+    <text x="332" y="292" fill="#CBD5E1" font-family="Inter, Arial" font-size="13">participant scoped</text>
+  </g>
+  <g>
+    <rect x="540" y="140" width="150" height="180" rx="16" fill="white" fill-opacity=".08" stroke="white" stroke-opacity=".12"/>
+    <circle cx="615" cy="202" r="28" fill="#F43F5E" fill-opacity=".18" stroke="#FDA4AF" stroke-width="3"/>
+    <text x="580" y="265" fill="#F8FAFC" font-family="Inter, Arial" font-size="22" font-weight="800">Peer</text>
+    <text x="570" y="292" fill="#CBD5E1" font-family="Inter, Arial" font-size="13">direct media path</text>
+  </g>
+  <rect x="78" y="58" width="202" height="44" rx="12" fill="white" fill-opacity=".08"/>
+  <text x="104" y="86" fill="#F8FAFC" font-family="Inter, Arial" font-size="14" font-weight="700">Backend-aligned room flow</text>
+</svg>
