@@ -24,7 +24,7 @@ export default function MessageList() {
   }
 
   return (
-    <div className="flex-1 space-y-3 overflow-y-auto px-3 py-4 sm:px-4">
+    <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-3 py-4 sm:px-4">
       <AnimatePresence initial={false}>
         {messages.map((message) => {
           const isMine = message.sender === "me";
