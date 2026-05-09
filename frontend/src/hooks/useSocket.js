@@ -44,7 +44,7 @@ export function useSocket() {
       const state = useAppStore.getState();
       state.setSocketStatus(SOCKET_STATUS.CONNECTED);
       if (state.queueStatus === SESSION_STATUS.SEARCHING) {
-        socket.emit(EVENTS.JOIN_QUEUE);
+        socket.emit(EVENTS.JOIN_QUEUE, { userData: { chatMode: state.chatMode } });
       }
       state.addToast({
         title: "Reconnected",

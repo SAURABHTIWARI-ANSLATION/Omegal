@@ -1,6 +1,6 @@
 import { Server } from 'socket.io';
-import { corsConfig } from './corsConfig.js';
 import { registerSocketControllers } from '../controllers/socketController.js';
+import { corsOriginDelegate } from './originConfig.js';
 
 /**
  * Initialize Socket.IO server with configuration
@@ -9,10 +9,11 @@ import { registerSocketControllers } from '../controllers/socketController.js';
 export const initializeSocketIO = (httpServer) => {
     const io = new Server(httpServer, {
         cors: {
-            origin: process.env.CORS_ORIGIN || '*',
+            origin: corsOriginDelegate,
             methods: ['GET', 'POST'],
             credentials: true
         },
+        maxHttpBufferSize: 256 * 1024,
         transports: ['websocket', 'polling'],
         pingInterval: 25000,
         pingTimeout: 20000

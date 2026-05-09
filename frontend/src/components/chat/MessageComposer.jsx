@@ -26,6 +26,7 @@ export default function MessageComposer({ disabled }) {
             }
           }}
           rows={1}
+          maxLength={1000}
           placeholder={disabled ? "Connect with a partner to chat" : "Write a message"}
           className="max-h-32 min-h-11 flex-1 resize-none bg-transparent px-3 py-3 text-sm text-white outline-none placeholder:text-slate-500 disabled:cursor-not-allowed"
         />

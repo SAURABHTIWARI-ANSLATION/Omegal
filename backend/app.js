@@ -1,4 +1,5 @@
 import express from 'express';
+import helmet from 'helmet';
 import { createServer } from 'http';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
@@ -10,6 +11,7 @@ dotenv.config();
 // Import configurations and modules
 import { initializeSocketIO } from './config/socketConfig.js';
 import { corsConfig } from './config/corsConfig.js';
+import { createMemoryRateLimiter } from './utils/rateLimiter.js';
 
 // Get __dirname equivalent in ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -20,9 +22,17 @@ const app = express();
 const httpServer = createServer(app);
 
 // Middleware
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.set('trust proxy', 1);
+app.use(helmet({
+    crossOriginEmbedderPolicy: false
+}));
 app.use(corsConfig);
+app.use(createMemoryRateLimiter({
+    windowMs: 60_000,
+    max: Number(process.env.HTTP_RATE_LIMIT_MAX || 120)
+}));
+app.use(express.json({ limit: '16kb' }));
+app.use(express.urlencoded({ extended: true, limit: '16kb' }));
 
 // Initialize Socket.IO
 initializeSocketIO(httpServer);
@@ -58,7 +68,7 @@ app.use((err, req, res, next) => {
     console.error('Error:', err);
     res.status(500).json({
         error: 'Internal server error',
-        message: err.message
+        message: process.env.NODE_ENV === 'production' ? 'Unexpected server error' : err.message
     });
 });
 

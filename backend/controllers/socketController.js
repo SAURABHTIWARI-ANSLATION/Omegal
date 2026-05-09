@@ -5,13 +5,35 @@
 import queueService from '../services/queueService.js';
 import roomService from '../services/roomService.js';
 import { generateRoomId } from '../utils/roomIdGenerator.js';
+import { consumeRateLimit } from '../utils/rateLimiter.js';
 import {
-    isValidSocketId,
     isValidMessage,
+    isValidUserData,
     isValidOffer,
     isValidAnswer,
-    isValidICECandidate
+    isValidICECandidate,
+    normalizeMessage,
+    sanitizeUserData
 } from '../utils/validations.js';
+
+const SOCKET_EVENT_LIMITS = {
+    join_queue: { windowMs: 60_000, max: 12 },
+    leave_queue: { windowMs: 60_000, max: 20 },
+    disconnect_room: { windowMs: 60_000, max: 20 },
+    send_message: { windowMs: 10_000, max: 20 },
+    send_offer: { windowMs: 60_000, max: 10 },
+    send_answer: { windowMs: 60_000, max: 10 },
+    send_ice_candidate: { windowMs: 10_000, max: 120 },
+    default: { windowMs: 10_000, max: 80 }
+};
+
+const isAuthorizedAdmin = (socket) => {
+    const adminToken = process.env.ADMIN_TOKEN;
+    if (!adminToken) return false;
+
+    const suppliedToken = socket.handshake.auth?.adminToken || socket.handshake.headers?.['x-admin-token'];
+    return suppliedToken === adminToken;
+};
 
 /**
  * Register all socket event handlers
@@ -20,6 +42,22 @@ import {
 export const registerSocketControllers = (io) => {
     io.on('connection', (socket) => {
         console.log(`User connected: ${socket.id}`);
+
+        socket.use((packet, next) => {
+            const [eventName] = packet;
+            const limit = SOCKET_EVENT_LIMITS[eventName] || SOCKET_EVENT_LIMITS.default;
+            const result = consumeRateLimit(`socket:${socket.id}:${eventName}`, limit);
+
+            if (!result.allowed) {
+                socket.emit('error', {
+                    message: 'Too many requests',
+                    retryAfterMs: result.retryAfterMs
+                });
+                return;
+            }
+
+            next();
+        });
 
         // Emit connection success
         socket.emit('connection_success', {
@@ -34,15 +72,30 @@ export const registerSocketControllers = (io) => {
          */
         socket.on('join_queue', (data) => {
             try {
-                const userData = data?.userData || {};
+                const rawUserData = data?.userData || {};
+                if (!isValidUserData(rawUserData)) {
+                    socket.emit('error', { message: 'Invalid user data' });
+                    return;
+                }
+
+                if (roomService.getRoomByUser(socket.id)) {
+                    handleUserDisconnect(io, socket.id, { reason: 'joining_queue' });
+                }
+
+                const userData = sanitizeUserData(rawUserData);
 
                 // Add user to queue
-                queueService.addToQueue(socket.id, userData);
+                const queuedUser = queueService.addToQueue(socket.id, userData);
+                if (!queuedUser) {
+                    socket.emit('error', { message: 'Unable to join queue' });
+                    return;
+                }
 
                 // Emit queue joined confirmation
+                const queuePosition = queueService.waitingQueue.findIndex(u => u.socketId === socket.id) + 1;
                 socket.emit('queue_joined', {
                     message: 'You have joined the queue',
-                    queuePosition: queueService.waitingQueue.findIndex(u => u.socketId === socket.id) + 1,
+                    queuePosition,
                     queueSize: queueService.getQueueSize()
                 });
 
@@ -108,6 +161,7 @@ export const registerSocketControllers = (io) => {
                     socket.emit('error', { message: 'Invalid message' });
                     return;
                 }
+                const message = normalizeMessage(data.message);
 
                 const room = roomService.getRoomByUser(socket.id);
                 if (!room) {
@@ -116,21 +170,26 @@ export const registerSocketControllers = (io) => {
                 }
 
                 // Store message
-                roomService.addMessage(room.roomId, socket.id, data.message);
+                roomService.addMessage(room.roomId, socket.id, message);
 
                 // Get partner socket ID
                 const partner = roomService.getPartner(room.roomId, socket.id);
+                if (!partner) {
+                    socket.emit('error', { message: 'Partner not available' });
+                    return;
+                }
 
                 // Send message to partner
                 io.to(partner).emit('receive_message', {
-                    message: data.message,
+                    message,
                     senderId: socket.id,
                     timestamp: Date.now()
                 });
 
                 // Send confirmation to sender
                 socket.emit('message_sent', {
-                    message: data.message,
+                    clientMessageId: data.clientMessageId || null,
+                    message,
                     timestamp: Date.now()
                 });
             } catch (error) {
@@ -163,6 +222,10 @@ export const registerSocketControllers = (io) => {
 
                 // Get partner
                 const partner = roomService.getPartner(room.roomId, socket.id);
+                if (!partner) {
+                    socket.emit('error', { message: 'Partner not available' });
+                    return;
+                }
 
                 // Send offer to partner
                 io.to(partner).emit('receive_offer', {
@@ -200,6 +263,10 @@ export const registerSocketControllers = (io) => {
 
                 // Get partner
                 const partner = roomService.getPartner(room.roomId, socket.id);
+                if (!partner) {
+                    socket.emit('error', { message: 'Partner not available' });
+                    return;
+                }
 
                 // Send answer to partner
                 io.to(partner).emit('receive_answer', {
@@ -237,6 +304,10 @@ export const registerSocketControllers = (io) => {
 
                 // Get partner
                 const partner = roomService.getPartner(room.roomId, socket.id);
+                if (!partner) {
+                    socket.emit('error', { message: 'Partner not available' });
+                    return;
+                }
 
                 // Send candidate to partner
                 io.to(partner).emit('receive_ice_candidate', {
@@ -281,7 +352,12 @@ export const registerSocketControllers = (io) => {
          */
         socket.on('get_room_stats', () => {
             try {
-                socket.emit('room_stats', roomService.getStats());
+                if (!isAuthorizedAdmin(socket)) {
+                    socket.emit('error', { message: 'Unauthorized' });
+                    return;
+                }
+
+                socket.emit('room_stats', roomService.getStats({ includeRooms: true }));
             } catch (error) {
                 console.error('Error in get_room_stats:', error.message);
             }
@@ -291,7 +367,7 @@ export const registerSocketControllers = (io) => {
          * Disconnect event - Clean up when user leaves
          */
         socket.on('disconnect', () => {
-            handleUserDisconnect(io, socket.id);
+            handleUserDisconnect(io, socket.id, { reason: 'socket_disconnect' });
         });
 
         /**
@@ -299,7 +375,7 @@ export const registerSocketControllers = (io) => {
          * Event: disconnect_room
          */
         socket.on('disconnect_room', () => {
-            handleUserDisconnect(io, socket.id);
+            handleUserDisconnect(io, socket.id, { reason: 'manual_disconnect' });
         });
     });
 };
@@ -309,12 +385,13 @@ export const registerSocketControllers = (io) => {
  * @param {Server} io - Socket.IO server
  * @param {string} socketId - Disconnected user's socket ID
  */
-const handleUserDisconnect = (io, socketId) => {
+const handleUserDisconnect = (io, socketId, options = {}) => {
+    const { reason = 'disconnect' } = options;
     console.log(`🔴 User disconnected: ${socketId}`);
 
     // Check if user was in queue
     if (queueService.isInQueue(socketId)) {
-        queueService.removeFromQueue(socketId);
+        queueService.removeUser(socketId);
         io.emit('queue_size_updated', {
             queueSize: queueService.getQueueSize()
         });
@@ -328,14 +405,17 @@ const handleUserDisconnect = (io, socketId) => {
         // Notify partner about disconnection
         if (partner) {
             io.to(partner).emit('partner_disconnected', {
-                message: 'Your partner has disconnected',
+                message: reason === 'joining_queue' ? 'Your partner is searching for a new chat' : 'Your partner has disconnected',
                 roomId: room.roomId
             });
+            queueService.removeUser(partner);
         }
 
         // Close room
         roomService.closeRoom(room.roomId);
     }
+
+    queueService.removeUser(socketId);
 
     // Update stats
     io.emit('queue_size_updated', {
@@ -353,6 +433,15 @@ const checkAndPairUsers = (io) => {
     if (pair) {
         const [user1, user2] = pair;
         const roomId = generateRoomId();
+        const socket1 = io.of('/').sockets.get(user1.socketId);
+        const socket2 = io.of('/').sockets.get(user2.socketId);
+
+        if (!socket1 || !socket2) {
+            queueService.removeUser(user1.socketId);
+            queueService.removeUser(user2.socketId);
+            checkAndPairUsers(io);
+            return;
+        }
 
         // Create room
         roomService.createRoom(
@@ -364,11 +453,8 @@ const checkAndPairUsers = (io) => {
         );
 
         // Join both users to a socket.io room
-        const room = io.of('/').sockets.get(user1.socketId);
-        const room2 = io.of('/').sockets.get(user2.socketId);
-
-        if (room) room.join(roomId);
-        if (room2) room2.join(roomId);
+        socket1.join(roomId);
+        socket2.join(roomId);
 
         // Notify both users about pairing
         io.to(roomId).emit('user_matched', {

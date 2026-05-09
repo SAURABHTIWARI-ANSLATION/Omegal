@@ -9,6 +9,8 @@ class RoomService {
         this.rooms = new Map();
         // Map to track user's room: socketId -> roomId
         this.userRoomMap = new Map();
+        this.maxMessagesPerRoom = Number(process.env.MAX_ROOM_MESSAGES || 100);
+        this.maxIceCandidatesPerRoom = Number(process.env.MAX_ROOM_ICE_CANDIDATES || 80);
     }
 
     /**
@@ -36,6 +38,8 @@ class RoomService {
             messages: [],
             webrtcState: {
                 user1Offer: null,
+                user2Offer: null,
+                user1Answer: null,
                 user2Answer: null,
                 iceCandidates: []
             }
@@ -98,9 +102,12 @@ class RoomService {
         if (room) {
             room.messages.push({
                 socketId,
-                message,
+                message: message.trim().slice(0, 1000),
                 timestamp: Date.now()
             });
+            if (room.messages.length > this.maxMessagesPerRoom) {
+                room.messages.splice(0, room.messages.length - this.maxMessagesPerRoom);
+            }
             console.log(`💬 Message added to room ${roomId}`);
         }
     }
@@ -153,6 +160,9 @@ class RoomService {
                 ...candidate,
                 timestamp: Date.now()
             });
+            if (room.webrtcState.iceCandidates.length > this.maxIceCandidatesPerRoom) {
+                room.webrtcState.iceCandidates.splice(0, room.webrtcState.iceCandidates.length - this.maxIceCandidatesPerRoom);
+            }
         }
     }
 
@@ -194,10 +204,18 @@ class RoomService {
      * Get room statistics
      * @returns {Object} Statistics
      */
-    getStats() {
-        return {
+    getStats({ includeRooms = false } = {}) {
+        const stats = {
             totalRooms: this.rooms.size,
-            totalUsers: this.userRoomMap.size,
+            totalUsers: this.userRoomMap.size
+        };
+
+        if (!includeRooms) {
+            return stats;
+        }
+
+        return {
+            ...stats,
             rooms: Array.from(this.rooms.values()).map(room => ({
                 roomId: room.roomId,
                 createdAt: room.createdAt,
