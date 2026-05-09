@@ -16,7 +16,7 @@ export default function MediaControls() {
   const hasVideo = Boolean(localStream?.getVideoTracks().length);
 
   return (
-    <div className="safe-bottom flex flex-wrap items-center justify-center gap-3 rounded-lg border border-white/10 bg-white/10 p-3 backdrop-blur-xl">
+    <div className="safe-bottom flex shrink-0 flex-wrap items-center justify-center gap-3 rounded-lg border border-white/10 bg-white/10 p-2 backdrop-blur-xl">
       <Button type="button" variant={audioEnabled ? "secondary" : "danger"} size="icon" disabled={!hasAudio} onClick={toggleAudio} aria-label="Toggle microphone">
         {audioEnabled ? <Mic className="h-5 w-5" /> : <MicOff className="h-5 w-5" />}
       </Button>

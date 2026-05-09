@@ -76,7 +76,7 @@ export default function Chat() {
 
   if (queueStatus === SESSION_STATUS.SEARCHING) {
     return (
-      <AppShell>
+      <AppShell variant="marketing">
         <SearchPanel />
       </AppShell>
     );
@@ -116,17 +116,17 @@ export default function Chat() {
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -16 }}
         transition={{ duration: 0.3 }}
-        className="mx-auto flex min-h-screen max-w-7xl flex-col px-4 pt-24 pb-6 sm:px-6 lg:px-8"
+        className="mx-auto mt-16 flex h-[calc(100vh-4rem)] max-w-7xl flex-col overflow-hidden px-4 pt-3 pb-3 sm:px-6 lg:px-8"
       >
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="mb-3 flex shrink-0 flex-wrap items-center justify-between gap-3">
           <div>
             <Badge variant={isVideo ? "info" : "success"}>{isVideo ? "Video mode" : "Text mode"}</Badge>
-            <h1 className="mt-3 text-3xl font-bold text-slate-950">Live room</h1>
+            <h1 className="mt-2 text-2xl font-bold text-slate-950">Live room</h1>
           </div>
           <p className="max-w-xl text-sm leading-6 text-slate-600">Matched sockets stay isolated inside a backend room until either user moves on.</p>
         </div>
 
-        <div className="grid flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(22rem,0.36fr)]">
+        <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,0.34fr)]">
           {isVideo ? <VideoStage /> : <TextRoomPanel />}
           <ChatSidebar expanded={!isVideo} />
         </div>

@@ -15,8 +15,8 @@ export default function ChatSidebar({ expanded = false }) {
   const canChat = queueStatus === SESSION_STATUS.MATCHED && !partnerDisconnected;
 
   return (
-    <aside className={`surface-panel flex min-h-[28rem] flex-col overflow-hidden rounded-lg ${expanded ? "lg:col-span-2" : ""}`}>
-      <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-4 sm:px-5">
+    <aside className={`surface-panel flex min-h-0 flex-col overflow-hidden rounded-lg ${expanded ? "lg:col-span-2" : ""}`}>
+      <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-200 px-4 py-3 sm:px-5">
         <div className="flex min-w-0 items-center gap-3">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-950 text-white">
             <MessageCircle className="h-5 w-5" />
