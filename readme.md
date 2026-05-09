@@ -1,10 +1,10 @@
-# Altfmeet
+# Altf-stranger Meet
 
 A high-performance, real-time random video and text chat platform inspired by Omegle. Built with a modern tech stack focusing on low-latency communication, sleek aesthetics, and robust WebRTC integration.
 
 ## Project Overview
 
-Altfmeet is a privacy-focused, anonymous chat application that connects strangers globally. It leverages a custom matchmaking engine to pair users into private rooms where they can interact via text, audio, and video.
+Altf-stranger Meet is a privacy-focused, anonymous chat application that connects strangers globally. It leverages a custom matchmaking engine to pair users into private rooms where they can interact via text, audio, and video.
 
 The architecture follows a decoupled client-server model:
 

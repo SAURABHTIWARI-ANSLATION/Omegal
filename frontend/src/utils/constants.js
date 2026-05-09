@@ -41,7 +41,7 @@ export const ROUTES = {
   CHAT: "/chat",
 };
 
-export const DEFAULT_API_URL = "http://localhost:5000";
+export const DEFAULT_API_URL = "https://omegal-n40p.onrender.com";
 
 export const API_URL = import.meta.env.VITE_API_URL || DEFAULT_API_URL;
 export const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || API_URL;
