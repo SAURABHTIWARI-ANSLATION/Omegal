@@ -120,11 +120,11 @@ export default function Chat() {
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -16 }}
         transition={{ duration: 0.3 }}
-        className="relative mx-auto mt-16 flex h-[calc(100dvh-4rem)] max-w-[92rem] flex-col overflow-hidden px-3 pt-3 pb-3 sm:px-5 lg:px-6"
+        className="chat-room-main relative mx-auto mt-16 flex h-[calc(100dvh-4rem)] max-w-[92rem] flex-col overflow-hidden px-2 pt-2 pb-2 sm:px-5 sm:pt-3 sm:pb-3 lg:px-6"
       >
         <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-44 bg-[radial-gradient(circle_at_18%_0%,rgba(20,184,166,0.18),transparent_32%),radial-gradient(circle_at_82%_15%,rgba(99,102,241,0.16),transparent_30%)]" />
 
-        <div className="mb-2 shrink-0 rounded-lg border border-slate-200/80 bg-white/86 p-2.5 shadow-sm backdrop-blur-xl sm:mb-3 sm:p-3">
+        <div className="mobile-room-summary mb-2 shrink-0 rounded-lg border border-slate-200/80 bg-white/86 p-2.5 shadow-sm backdrop-blur-xl sm:mb-3 sm:p-3">
           <div className="flex items-center justify-between gap-2 sm:gap-3">
             <div className="min-w-0">
               <div className="flex min-w-0 flex-wrap items-center gap-1.5 sm:gap-2">
@@ -134,7 +134,7 @@ export default function Chat() {
                   Live room
                 </span>
               </div>
-              <h1 className="mt-1.5 truncate text-lg font-black tracking-normal text-slate-950 sm:text-2xl">Private stranger room</h1>
+              <h1 className="mobile-room-title mt-1.5 truncate text-lg font-black tracking-normal text-slate-950 sm:text-2xl">Private stranger room</h1>
             </div>
 
             <div className="hidden grid-cols-2 gap-2 text-xs font-semibold text-slate-600 sm:grid md:flex">
@@ -152,10 +152,10 @@ export default function Chat() {
 
         <div
           className={cn(
-            "grid min-h-0 flex-1 gap-3",
+            "grid min-h-0 flex-1",
             isVideo
-              ? "grid-rows-[minmax(0,1fr)_minmax(11.5rem,0.34fr)] sm:grid-rows-[minmax(0,1fr)_minmax(13rem,0.36fr)] lg:grid-cols-[minmax(0,1fr)_21rem] lg:grid-rows-1 xl:grid-cols-[minmax(0,1fr)_23rem]"
-              : "grid-rows-[minmax(0,1fr)] lg:grid-cols-[minmax(0,1fr)_minmax(22rem,0.4fr)]"
+              ? "chat-video-layout"
+              : "gap-3 grid-rows-[minmax(0,1fr)] lg:grid-cols-[minmax(0,1fr)_minmax(22rem,0.4fr)]"
           )}
         >
           {isVideo ? <VideoStage /> : <TextRoomPanel />}

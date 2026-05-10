@@ -24,20 +24,20 @@ export default function MediaControls({ compact = false, className }) {
     <div
       className={cn(
         "safe-bottom flex shrink-0 flex-nowrap items-center justify-center rounded-lg border border-white/10 bg-white/10 backdrop-blur-xl",
-        compact ? "gap-1.5 p-1.5 [--safe-bottom-padding:0.375rem] sm:gap-2 sm:p-2" : "gap-2 p-2 [--safe-bottom-padding:0.5rem] sm:gap-3",
+        compact ? "gap-1.5 p-1.5 [--safe-bottom-padding:0.25rem] sm:gap-2 sm:p-2" : "gap-2 p-2 [--safe-bottom-padding:0.5rem] sm:gap-3",
         className
       )}
     >
-      <Button type="button" variant={audioEnabled ? "secondary" : "danger"} size="icon" className={cn(compact && "h-10 w-10")} disabled={!hasAudio} onClick={toggleAudio} aria-label="Toggle microphone">
+      <Button type="button" variant={audioEnabled ? "secondary" : "danger"} size="icon" className={cn(compact && "h-9 w-9 sm:h-10 sm:w-10")} disabled={!hasAudio} onClick={toggleAudio} aria-label="Toggle microphone">
         {audioEnabled ? <Mic className="h-5 w-5" /> : <MicOff className="h-5 w-5" />}
       </Button>
-      <Button type="button" variant={videoEnabled ? "secondary" : "danger"} size="icon" className={cn(compact && "h-10 w-10")} disabled={!hasVideo} onClick={toggleVideo} aria-label="Toggle camera">
+      <Button type="button" variant={videoEnabled ? "secondary" : "danger"} size="icon" className={cn(compact && "h-9 w-9 sm:h-10 sm:w-10")} disabled={!hasVideo} onClick={toggleVideo} aria-label="Toggle camera">
         {videoEnabled ? <Video className="h-5 w-5" /> : <VideoOff className="h-5 w-5" />}
       </Button>
       <Button
         type="button"
         variant={partnerDisconnected ? "success" : "subtle"}
-        className={cn("min-w-0 px-3", compact ? "h-10 max-w-[9rem] flex-1 sm:flex-none sm:min-w-[8rem]" : "min-w-[7.5rem] sm:min-w-[9rem]")}
+        className={cn("min-w-0 px-3", compact ? "h-9 max-w-[8rem] flex-1 sm:h-10 sm:flex-none sm:min-w-[8rem]" : "min-w-[7.5rem] sm:min-w-[9rem]")}
         onClick={nextPartner}
         disabled={nextDisabled}
       >

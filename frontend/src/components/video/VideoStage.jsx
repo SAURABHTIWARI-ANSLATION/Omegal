@@ -19,7 +19,7 @@ export default function VideoStage() {
   const isConnected = rtcConnectionState === "connected" || iceConnectionState === "connected";
   const isImmersive = isCinemaLayout;
   const localPreviewClass = cn(
-    "absolute right-3 z-20 aspect-video w-[min(42vw,18rem)] min-w-[10rem] border-teal-300/50 bg-slate-950 shadow-[0_20px_70px_rgba(0,0,0,0.5)] sm:right-4 sm:w-[min(30vw,21rem)]",
+    "absolute right-2 z-20 aspect-video w-[min(46vw,16rem)] min-w-[7.5rem] border-teal-300/50 bg-slate-950 shadow-[0_20px_70px_rgba(0,0,0,0.5)] sm:right-4 sm:w-[min(30vw,21rem)] sm:min-w-[10rem]",
     isFullscreen
       ? "bottom-[calc(5.75rem+env(safe-area-inset-bottom))] sm:bottom-[calc(6.25rem+env(safe-area-inset-bottom))]"
       : "bottom-[calc(5.25rem+env(safe-area-inset-bottom))] sm:bottom-[calc(5.75rem+env(safe-area-inset-bottom))]"
@@ -52,17 +52,17 @@ export default function VideoStage() {
     <section
       ref={stageRef}
       className={cn(
-        "media-panel relative flex min-h-0 flex-1 flex-col gap-2 overflow-hidden rounded-lg p-2 text-white sm:gap-3 sm:p-3 lg:p-4",
+        "video-stage-panel media-panel relative flex min-h-0 flex-1 flex-col gap-1.5 overflow-hidden rounded-lg p-1.5 text-white sm:gap-3 sm:p-3 lg:p-4",
         isFullscreen && "h-screen w-screen rounded-none border-0 bg-slate-950 p-2 sm:p-4"
       )}
     >
-      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-white/10 pb-2 sm:gap-3 sm:pb-3">
+      <div className="video-stage-header flex shrink-0 items-center justify-between gap-2 border-b border-white/10 pb-1.5 sm:gap-3 sm:pb-3">
         <div className="min-w-0">
           <p className="hidden items-center gap-2 text-xs font-semibold text-teal-200 sm:flex sm:text-sm">
             <Sparkles className="h-3.5 w-3.5" />
             Private room
           </p>
-          <h2 className="truncate text-base font-bold sm:mt-1 sm:text-2xl">Video conversation</h2>
+          <h2 className="video-stage-title truncate text-sm font-bold sm:mt-1 sm:text-2xl">Video conversation</h2>
         </div>
         <div className="flex min-w-0 shrink-0 items-center justify-end gap-1.5 sm:gap-2">
           <Badge variant="dark" className="hidden max-w-[10rem] sm:inline-flex lg:max-w-full">
@@ -91,7 +91,7 @@ export default function VideoStage() {
         </div>
       ) : (
         <>
-          <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-2 gap-2 sm:gap-3 md:grid-cols-2 md:grid-rows-1">
+          <div className="video-tile-grid grid min-h-0 flex-1 grid-cols-2 grid-rows-1 gap-1.5 sm:gap-3">
             <VideoTile stream={remoteStream} label="Stranger" fit="contain" className="h-full min-h-0" />
             <VideoTile stream={localStream} label="You" muted local fit="contain" className="h-full min-h-0" />
           </div>

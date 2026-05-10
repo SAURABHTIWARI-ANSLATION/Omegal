@@ -41,12 +41,12 @@ export default function MessageList({ compact = false }) {
       aria-live="polite"
       className={cn(
         "min-h-0 flex-1 overscroll-contain overflow-y-auto overflow-x-hidden bg-slate-50/50 [overflow-anchor:none]",
-        compact ? "px-2.5 py-2.5 sm:px-3 sm:py-3" : "px-3 py-3 sm:px-4 sm:py-4"
+        compact ? "px-2 py-2 sm:px-3 sm:py-3" : "px-3 py-3 sm:px-4 sm:py-4"
       )}
     >
       {messages.length === 0 ? (
-        <div className="flex min-h-full flex-col items-center justify-center bg-[radial-gradient(circle_at_50%_35%,rgba(20,184,166,0.08),transparent_32%)] px-6 text-center text-sm leading-6 text-slate-500">
-          <span className="mb-3 flex h-11 w-11 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm">
+        <div className={cn("flex min-h-full flex-col items-center justify-center bg-[radial-gradient(circle_at_50%_35%,rgba(20,184,166,0.08),transparent_32%)] px-4 text-center text-sm leading-6 text-slate-500", compact && "text-xs leading-5")}>
+          <span className={cn("mb-3 flex h-11 w-11 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm", compact && "mb-2 h-9 w-9")}>
             <MessagesSquare className="h-5 w-5" />
           </span>
           Say hello when your partner arrives.

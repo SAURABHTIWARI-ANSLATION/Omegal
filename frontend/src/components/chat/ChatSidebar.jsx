@@ -18,28 +18,28 @@ export default function ChatSidebar({ compact = false, expanded = false, classNa
   const nextDisabled = isSwitchingPartner || queueStatus === SESSION_STATUS.SEARCHING;
 
   return (
-    <aside className={cn("surface-panel flex min-h-0 flex-col overflow-hidden rounded-lg", expanded && "lg:col-span-2", className)}>
+    <aside className={cn("chat-sidebar-panel surface-panel flex min-h-0 flex-col overflow-hidden rounded-lg", expanded && "lg:col-span-2", className)}>
       <div
         className={cn(
-          "flex shrink-0 items-center justify-between gap-2 border-b border-slate-200 bg-gradient-to-r from-white via-white to-teal-50/70",
-          compact ? "px-2.5 py-2 sm:px-3 sm:py-2.5" : "px-3 py-2.5 sm:px-5 sm:py-3"
+          "chat-sidebar-header flex shrink-0 items-center justify-between gap-2 border-b border-slate-200 bg-gradient-to-r from-white via-white to-teal-50/70",
+          compact ? "px-2 py-1.5 sm:px-3 sm:py-2.5" : "px-3 py-2.5 sm:px-5 sm:py-3"
         )}
       >
         <div className={cn("flex min-w-0 items-center", compact ? "gap-2" : "gap-3")}>
           <span
             className={cn(
               "flex shrink-0 items-center justify-center rounded-lg bg-slate-950 text-white shadow-[0_10px_28px_rgba(15,23,42,0.18)]",
-              compact ? "h-9 w-9" : "h-10 w-10"
+              compact ? "h-8 w-8 sm:h-9 sm:w-9" : "h-10 w-10"
             )}
           >
             <MessageCircle className={cn(compact ? "h-4 w-4" : "h-5 w-5")} />
           </span>
           <div className="min-w-0">
-            <h2 className="text-sm font-bold text-slate-950">Room chat</h2>
+            <h2 className="text-sm font-bold leading-tight text-slate-950">Room chat</h2>
             <p className={cn("truncate text-xs text-slate-500", compact && "max-sm:hidden")}>{messages.length} messages in this room</p>
           </div>
         </div>
-        <Badge variant={canChat ? "success" : partnerDisconnected ? "warning" : "default"} className={cn(compact && "px-2 py-0.5")}>
+        <Badge variant={canChat ? "success" : partnerDisconnected ? "warning" : "default"} className={cn(compact && "px-2 py-0.5 text-[11px]")}>
           {canChat ? "Connected" : partnerDisconnected ? "Ended" : "Waiting"}
         </Badge>
       </div>

@@ -17,7 +17,7 @@ export default function MessageComposer({ compact = false, disabled }) {
     <form
       className={cn(
         "safe-bottom shrink-0 border-t border-slate-200 bg-white/90",
-        compact ? "p-2 [--safe-bottom-padding:0.5rem] sm:p-2.5" : "p-2.5 [--safe-bottom-padding:0.75rem] sm:p-3"
+        compact ? "p-1.5 [--safe-bottom-padding:0.375rem] sm:p-2.5" : "p-2.5 [--safe-bottom-padding:0.75rem] sm:p-3"
       )}
       onSubmit={(event) => {
         event.preventDefault();
@@ -40,10 +40,10 @@ export default function MessageComposer({ compact = false, disabled }) {
           placeholder={disabled ? "Connect with a partner to chat" : "Write a message"}
           className={cn(
             "min-w-0 flex-1 resize-none overflow-y-auto bg-transparent text-sm text-slate-950 outline-none placeholder:text-slate-400 disabled:cursor-not-allowed",
-            compact ? "h-10 px-2.5 py-2" : "h-11 px-3 py-2.5"
+            compact ? "h-9 px-2.5 py-1.5 sm:h-10 sm:py-2" : "h-11 px-3 py-2.5"
           )}
         />
-        <Button type="submit" size="icon" className={cn("shrink-0", compact && "h-10 w-10")} disabled={disabled || !value.trim()} aria-label="Send message">
+        <Button type="submit" size="icon" className={cn("shrink-0", compact && "h-9 w-9 sm:h-10 sm:w-10")} disabled={disabled || !value.trim()} aria-label="Send message">
           <SendHorizonal className="h-4 w-4" />
         </Button>
       </div>
