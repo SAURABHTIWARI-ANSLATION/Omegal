@@ -1,17 +1,16 @@
-/**
- * Room Service - Manages chat rooms and paired users
- * Tracks active rooms and participants
- */
+import { redisKey } from '../config/redisConfig.js';
+import { getRedisStateClient } from './redisClient.js';
 
 class RoomService {
     constructor() {
-        // Map to store rooms: roomId -> { user1, user2, createdAt, status }
         this.rooms = new Map();
-        // Map to track user's room: socketId -> roomId
         this.userRoomMap = new Map();
         this.maxMessagesPerRoom = Number(process.env.MAX_ROOM_MESSAGES || 100);
         this.maxIceCandidatesPerRoom = Number(process.env.MAX_ROOM_ICE_CANDIDATES || 80);
         this.maxRoomAgeMs = Number(process.env.MAX_ROOM_AGE_MS || 2 * 60 * 60 * 1000);
+        this.roomsKey = redisKey('rooms', 'ids');
+        this.userRoomKey = redisKey('rooms', 'user-map');
+        this.roomKeyPrefix = redisKey('rooms', 'room');
     }
 
     createWebRTCState() {
@@ -24,16 +23,32 @@ class RoomService {
         };
     }
 
-    /**
-     * Create a new room with two users
-     * @param {string} roomId - Unique room ID
-     * @param {string} user1SocketId - First user's socket ID
-     * @param {string} user2SocketId - Second user's socket ID
-     * @param {Object} user1Data - First user's data
-     * @param {Object} user2Data - Second user's data
-     * @returns {Object} Created room object
-     */
-    createRoom(roomId, user1SocketId, user2SocketId, user1Data, user2Data) {
+    roomKey(roomId) {
+        return `${this.roomKeyPrefix}:${roomId}`;
+    }
+
+    async getClient() {
+        return getRedisStateClient();
+    }
+
+    async saveRoom(client, room) {
+        if (!room?.roomId) return null;
+
+        await client.set(this.roomKey(room.roomId), JSON.stringify(room));
+        await client.sAdd(this.roomsKey, room.roomId);
+
+        const participants = this.getParticipants(room);
+        if (participants.length > 0) {
+            await client.hSet(
+                this.userRoomKey,
+                Object.fromEntries(participants.map((user) => [user.socketId, room.roomId]))
+            );
+        }
+
+        return room;
+    }
+
+    async createRoom(roomId, user1SocketId, user2SocketId, user1Data, user2Data) {
         const now = Date.now();
         const room = {
             roomId,
@@ -54,29 +69,51 @@ class RoomService {
             webrtcState: this.createWebRTCState()
         };
 
-        this.rooms.set(roomId, room);
-        this.userRoomMap.set(user1SocketId, roomId);
-        this.userRoomMap.set(user2SocketId, roomId);
+        const client = await this.getClient();
+        if (client) {
+            await this.saveRoom(client, room);
+        } else {
+            this.rooms.set(roomId, room);
+            this.userRoomMap.set(user1SocketId, roomId);
+            this.userRoomMap.set(user2SocketId, roomId);
+        }
 
         console.log(`🏠 Room created: ${roomId}`);
         return room;
     }
 
-    /**
-     * Get room by ID
-     * @param {string} roomId - Room ID
-     * @returns {Object|null} Room object or null
-     */
-    getRoom(roomId) {
+    async getRoom(roomId) {
+        const client = await this.getClient();
+        if (client) {
+            const raw = await client.get(this.roomKey(roomId));
+            if (!raw) return null;
+
+            try {
+                return JSON.parse(raw);
+            } catch {
+                await this.closeRoom(roomId);
+                return null;
+            }
+        }
+
         return this.rooms.get(roomId) || null;
     }
 
-    /**
-     * Get room by user's socket ID
-     * @param {string} socketId - Socket ID
-     * @returns {Object|null} Room object or null
-     */
-    getRoomByUser(socketId) {
+    async getRoomByUser(socketId) {
+        const client = await this.getClient();
+        if (client) {
+            const roomId = await client.hGet(this.userRoomKey, socketId);
+            if (!roomId) return null;
+
+            const room = await this.getRoom(roomId);
+            if (!room) {
+                await client.hDel(this.userRoomKey, socketId);
+                return null;
+            }
+
+            return room;
+        }
+
         const roomId = this.userRoomMap.get(socketId);
         if (!roomId) return null;
 
@@ -111,8 +148,8 @@ class RoomService {
         return participants.length === 1 ? participants[0] : null;
     }
 
-    isParticipant(roomId, socketId) {
-        return Boolean(this.getParticipantKey(this.getRoom(roomId), socketId));
+    async isParticipant(roomId, socketId) {
+        return Boolean(this.getParticipantKey(await this.getRoom(roomId), socketId));
     }
 
     touchRoom(room) {
@@ -121,14 +158,8 @@ class RoomService {
         }
     }
 
-    /**
-     * Get partner's socket ID in a room
-     * @param {string} roomId - Room ID
-     * @param {string} socketId - User's socket ID
-     * @returns {string|null} Partner's socket ID or null
-     */
-    getPartner(roomId, socketId) {
-        const room = this.getRoom(roomId);
+    async getPartner(roomId, socketId) {
+        const room = await this.getRoom(roomId);
         if (!room) return null;
 
         if (room.user1?.socketId === socketId) {
@@ -140,26 +171,40 @@ class RoomService {
         return null;
     }
 
-    resetWebRTCState(roomId) {
-        const room = this.getRoom(roomId);
+    async resetWebRTCState(roomId) {
+        const client = await this.getClient();
+        const room = await this.getRoom(roomId);
         if (!room) return null;
 
         room.webrtcState = this.createWebRTCState();
         room.messages = [];
         this.touchRoom(room);
+
+        if (client) {
+            await this.saveRoom(client, room);
+        }
+
         return room;
     }
 
-    bumpSessionVersion(roomId) {
-        const room = this.resetWebRTCState(roomId);
+    async bumpSessionVersion(roomId) {
+        const room = await this.resetWebRTCState(roomId);
         if (!room) return null;
 
         room.sessionVersion = (Number(room.sessionVersion) || 1) + 1;
+        this.touchRoom(room);
+
+        const client = await this.getClient();
+        if (client) {
+            await this.saveRoom(client, room);
+        }
+
         return room.sessionVersion;
     }
 
-    addBlockedPartner(roomId, socketId) {
-        const room = this.getRoom(roomId);
+    async addBlockedPartner(roomId, socketId) {
+        const client = await this.getClient();
+        const room = await this.getRoom(roomId);
         if (!room || !socketId) return false;
 
         if (!Array.isArray(room.blockedPartnerIds)) {
@@ -171,30 +216,40 @@ class RoomService {
         }
 
         this.touchRoom(room);
+        if (client) await this.saveRoom(client, room);
         return true;
     }
 
-    getBlockedPartnerIds(roomId) {
-        const room = this.getRoom(roomId);
+    async getBlockedPartnerIds(roomId) {
+        const room = await this.getRoom(roomId);
         return Array.isArray(room?.blockedPartnerIds) ? room.blockedPartnerIds : [];
     }
 
-    detachParticipant(roomId, socketId) {
-        const room = this.getRoom(roomId);
+    async detachParticipant(roomId, socketId) {
+        const client = await this.getClient();
+        const room = await this.getRoom(roomId);
         const participantKey = this.getParticipantKey(room, socketId);
         if (!room || !participantKey) return null;
 
         const detachedUser = room[participantKey];
         room[participantKey] = null;
         room.status = this.getParticipants(room).length > 0 ? 'waiting' : 'closed';
-        this.userRoomMap.delete(socketId);
         this.touchRoom(room);
+
+        if (client) {
+            await client.hDel(this.userRoomKey, socketId);
+            await this.saveRoom(client, room);
+        } else {
+            this.userRoomMap.delete(socketId);
+        }
+
         return detachedUser;
     }
 
-    attachParticipant(roomId, user) {
-        const room = this.getRoom(roomId);
-        if (!room || !user?.socketId || this.isParticipant(roomId, user.socketId)) return null;
+    async attachParticipant(roomId, user) {
+        const client = await this.getClient();
+        const room = await this.getRoom(roomId);
+        if (!room || !user?.socketId || this.getParticipantKey(room, user.socketId)) return null;
 
         const participantKey = !room.user1 ? 'user1' : !room.user2 ? 'user2' : null;
         if (!participantKey) return null;
@@ -204,27 +259,29 @@ class RoomService {
             socketId: user.socketId
         };
         room.status = this.getParticipants(room).length === 2 ? 'active' : 'waiting';
-        this.userRoomMap.set(user.socketId, roomId);
         this.touchRoom(room);
+
+        if (client) {
+            await this.saveRoom(client, room);
+        } else {
+            this.userRoomMap.set(user.socketId, roomId);
+        }
+
         return room[participantKey];
     }
 
-    getWaitingRooms() {
-        return Array.from(this.rooms.values()).filter((room) => (
+    async getWaitingRooms() {
+        const rooms = await this.getAllRooms();
+        return rooms.filter((room) => (
             room.status === 'waiting'
             && this.getParticipants(room).length === 1
         ));
     }
 
-    /**
-     * Add message to room
-     * @param {string} roomId - Room ID
-     * @param {string} socketId - Sender's socket ID
-     * @param {string} message - Message content
-     */
-    addMessage(roomId, socketId, message) {
-        const room = this.getRoom(roomId);
-        if (room && this.isParticipant(roomId, socketId)) {
+    async addMessage(roomId, socketId, message) {
+        const client = await this.getClient();
+        const room = await this.getRoom(roomId);
+        if (room && this.getParticipantKey(room, socketId)) {
             room.messages.push({
                 socketId,
                 message: message.trim().slice(0, 1000),
@@ -234,20 +291,16 @@ class RoomService {
                 room.messages.splice(0, room.messages.length - this.maxMessagesPerRoom);
             }
             this.touchRoom(room);
+            if (client) await this.saveRoom(client, room);
             console.log(`💬 Message added to room ${roomId}`);
             return true;
         }
         return false;
     }
 
-    /**
-     * Store WebRTC offer
-     * @param {string} roomId - Room ID
-     * @param {string} socketId - Offer sender's socket ID
-     * @param {Object} offer - WebRTC offer
-     */
-    storeOffer(roomId, socketId, offer) {
-        const room = this.getRoom(roomId);
+    async storeOffer(roomId, socketId, offer) {
+        const client = await this.getClient();
+        const room = await this.getRoom(roomId);
         const participantKey = this.getParticipantKey(room, socketId);
         if (room && participantKey) {
             if (participantKey === 'user1') {
@@ -256,20 +309,16 @@ class RoomService {
                 room.webrtcState.user2Offer = offer;
             }
             this.touchRoom(room);
+            if (client) await this.saveRoom(client, room);
             console.log(`📤 Offer stored for room ${roomId}`);
             return true;
         }
         return false;
     }
 
-    /**
-     * Store WebRTC answer
-     * @param {string} roomId - Room ID
-     * @param {string} socketId - Answer sender's socket ID
-     * @param {Object} answer - WebRTC answer
-     */
-    storeAnswer(roomId, socketId, answer) {
-        const room = this.getRoom(roomId);
+    async storeAnswer(roomId, socketId, answer) {
+        const client = await this.getClient();
+        const room = await this.getRoom(roomId);
         const participantKey = this.getParticipantKey(room, socketId);
         if (room && participantKey) {
             if (participantKey === 'user1') {
@@ -278,20 +327,17 @@ class RoomService {
                 room.webrtcState.user2Answer = answer;
             }
             this.touchRoom(room);
+            if (client) await this.saveRoom(client, room);
             console.log(`📥 Answer stored for room ${roomId}`);
             return true;
         }
         return false;
     }
 
-    /**
-     * Add ICE candidate
-     * @param {string} roomId - Room ID
-     * @param {Object} candidate - ICE candidate
-     */
-    addICECandidate(roomId, socketId, candidate) {
-        const room = this.getRoom(roomId);
-        if (room && this.isParticipant(roomId, socketId)) {
+    async addICECandidate(roomId, socketId, candidate) {
+        const client = await this.getClient();
+        const room = await this.getRoom(roomId);
+        if (room && this.getParticipantKey(room, socketId)) {
             room.webrtcState.iceCandidates.push({
                 ...candidate,
                 timestamp: Date.now()
@@ -300,76 +346,92 @@ class RoomService {
                 room.webrtcState.iceCandidates.splice(0, room.webrtcState.iceCandidates.length - this.maxIceCandidatesPerRoom);
             }
             this.touchRoom(room);
+            if (client) await this.saveRoom(client, room);
             return true;
         }
         return false;
     }
 
-    /**
-     * Close/delete room
-     * @param {string} roomId - Room ID
-     * @returns {boolean} True if deleted, false if not found
-     */
-    closeRoom(roomId) {
-        const room = this.getRoom(roomId);
-        if (room) {
-            this.getParticipants(room).forEach((user) => {
+    async closeRoom(roomId) {
+        const client = await this.getClient();
+        const room = await this.getRoom(roomId);
+        if (!room) return false;
+
+        const participants = this.getParticipants(room);
+        if (client) {
+            if (participants.length > 0) {
+                await client.hDel(this.userRoomKey, participants.map((user) => user.socketId));
+            }
+            await client.sRem(this.roomsKey, roomId);
+            await client.del(this.roomKey(roomId));
+        } else {
+            participants.forEach((user) => {
                 this.userRoomMap.delete(user.socketId);
             });
             this.rooms.delete(roomId);
-            console.log(`🏚️ Room deleted: ${roomId}`);
-            return true;
         }
-        return false;
+
+        console.log(`🏚️ Room deleted: ${roomId}`);
+        return true;
     }
 
-    closeExpiredRooms(now = Date.now()) {
-        const expiredRooms = [];
+    async closeExpiredRooms(now = Date.now()) {
+        const rooms = await this.getAllRooms();
+        const expiredRooms = rooms.filter((room) => now - room.lastActivityAt >= this.maxRoomAgeMs);
 
-        for (const room of this.rooms.values()) {
-            if (now - room.lastActivityAt >= this.maxRoomAgeMs) {
-                expiredRooms.push(room);
-            }
+        for (const room of expiredRooms) {
+            await this.closeRoom(room.roomId);
         }
 
-        expiredRooms.forEach((room) => this.closeRoom(room.roomId));
         return expiredRooms;
     }
 
-    /**
-     * Check if room exists
-     * @param {string} roomId - Room ID
-     * @returns {boolean} True if room exists
-     */
-    roomExists(roomId) {
+    async roomExists(roomId) {
+        const client = await this.getClient();
+        if (client) {
+            return Boolean(await client.exists(this.roomKey(roomId)));
+        }
+
         return this.rooms.has(roomId);
     }
 
-    /**
-     * Get all active rooms
-     * @returns {Array} Array of all rooms
-     */
-    getAllRooms() {
+    async getAllRooms() {
+        const client = await this.getClient();
+        if (client) {
+            const roomIds = await client.sMembers(this.roomsKey);
+            if (roomIds.length === 0) return [];
+
+            const rooms = await client.mGet(roomIds.map((roomId) => this.roomKey(roomId)));
+            return rooms
+                .filter(Boolean)
+                .map((raw, index) => {
+                    try {
+                        return JSON.parse(raw);
+                    } catch {
+                        client.sRem(this.roomsKey, roomIds[index]).catch(() => {});
+                        return null;
+                    }
+                })
+                .filter(Boolean);
+        }
+
         return Array.from(this.rooms.values());
     }
 
-    /**
-     * Get room statistics
-     * @returns {Object} Statistics
-     */
-    getStats({ includeRooms = false } = {}) {
-        const stats = {
-            totalRooms: this.rooms.size,
-            totalUsers: this.userRoomMap.size
-        };
+    async getStats({ includeRooms = false } = {}) {
+        const client = await this.getClient();
+        const totalRooms = client ? await client.sCard(this.roomsKey) : this.rooms.size;
+        const totalUsers = client ? await client.hLen(this.userRoomKey) : this.userRoomMap.size;
+        const stats = { totalRooms, totalUsers };
 
         if (!includeRooms) {
             return stats;
         }
 
+        const rooms = await this.getAllRooms();
         return {
             ...stats,
-            rooms: Array.from(this.rooms.values()).map(room => ({
+            rooms: rooms.map(room => ({
                 roomId: room.roomId,
                 createdAt: room.createdAt,
                 lastActivityAt: room.lastActivityAt,
@@ -381,10 +443,19 @@ class RoomService {
         };
     }
 
-    /**
-     * Clear all rooms (for testing)
-     */
-    clear() {
+    async clear() {
+        const client = await this.getClient();
+        if (client) {
+            const keys = [];
+            for await (const key of client.scanIterator({ MATCH: redisKey('rooms', '*'), COUNT: 100 })) {
+                keys.push(key);
+            }
+            if (keys.length > 0) {
+                await client.del(keys);
+            }
+            return;
+        }
+
         this.rooms.clear();
         this.userRoomMap.clear();
         console.log('Room service cleared');

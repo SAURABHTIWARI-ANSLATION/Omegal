@@ -1,19 +1,82 @@
+import { randomUUID } from 'crypto';
+import { redisKey } from '../config/redisConfig.js';
+import { getRedisStateClient } from './redisClient.js';
 
 class QueueService {
     constructor() {
-        // Queue to store waiting users
         this.waitingQueue = [];
-        // Map to track user's current status
         this.userStatus = new Map();
+        this.queueKey = redisKey('queue', 'waiting');
+        this.statusKey = redisKey('queue', 'status');
+        this.userKeyPrefix = redisKey('queue', 'user');
     }
 
-    /**
-     * Add user to waiting queue
-     * @param {string} socketId - Socket ID of the user
-     * @param {Object} userData - User data (name, etc.)
-     * @returns {Object} User object added to queue
-     */
-    addToQueue(socketId, userData) {
+    userKey(socketId) {
+        return `${this.userKeyPrefix}:${socketId}`;
+    }
+
+    async getClient() {
+        return getRedisStateClient();
+    }
+
+    async getQueuedUser(client, socketId) {
+        const raw = await client.get(this.userKey(socketId));
+        if (!raw) return null;
+
+        try {
+            return JSON.parse(raw);
+        } catch {
+            await client.del(this.userKey(socketId));
+            await client.hDel(this.statusKey, socketId);
+            await client.lRem(this.queueKey, 0, socketId);
+            return null;
+        }
+    }
+
+    normalizeUser(socketId, userData = {}, status = 'waiting') {
+        return {
+            socketId,
+            ...userData,
+            joinedAt: userData.joinedAt || Date.now(),
+            status,
+            queueToken: userData.queueToken || randomUUID()
+        };
+    }
+
+    async pushUser(client, userObject, { front = false } = {}) {
+        await client.lRem(this.queueKey, 0, userObject.socketId);
+        await client.set(this.userKey(userObject.socketId), JSON.stringify(userObject));
+        await client.hSet(this.statusKey, userObject.socketId, userObject.status);
+
+        if (front) {
+            await client.lPush(this.queueKey, userObject.socketId);
+        } else {
+            await client.rPush(this.queueKey, userObject.socketId);
+        }
+
+        return userObject;
+    }
+
+    async addToQueue(socketId, userData) {
+        const client = await this.getClient();
+        if (client) {
+            const existingStatus = await client.hGet(this.statusKey, socketId);
+            if (existingStatus === 'waiting') {
+                const existingUser = await this.getQueuedUser(client, socketId);
+                if (existingUser) return existingUser;
+                await this.removeUser(socketId);
+            }
+
+            if (existingStatus) {
+                await this.removeUser(socketId);
+            }
+
+            const userObject = this.normalizeUser(socketId, userData, 'waiting');
+            await this.pushUser(client, userObject);
+            console.log(`✅ User ${socketId} added to Redis queue.`);
+            return userObject;
+        }
+
         const existingStatus = this.userStatus.get(socketId);
         if (existingStatus === 'waiting') {
             return this.waitingQueue.find(user => user.socketId === socketId) || null;
@@ -23,13 +86,7 @@ class QueueService {
             this.userStatus.delete(socketId);
         }
 
-        const userObject = {
-            socketId,
-            ...userData,
-            joinedAt: Date.now(),
-            status: 'waiting'
-        };
-
+        const userObject = this.normalizeUser(socketId, userData, 'waiting');
         this.waitingQueue.push(userObject);
         this.userStatus.set(socketId, 'waiting');
 
@@ -37,17 +94,18 @@ class QueueService {
         return userObject;
     }
 
-    requeueUser(user, { front = false } = {}) {
+    async requeueUser(user, { front = false } = {}) {
         if (!user?.socketId) return null;
 
-        this.removeUser(user.socketId);
+        const client = await this.getClient();
+        if (client) {
+            await this.removeUser(user.socketId);
+            const userObject = this.normalizeUser(user.socketId, user, 'waiting');
+            return this.pushUser(client, userObject, { front });
+        }
 
-        const userObject = {
-            ...user,
-            socketId: user.socketId,
-            joinedAt: user.joinedAt || Date.now(),
-            status: 'waiting'
-        };
+        await this.removeUser(user.socketId);
+        const userObject = this.normalizeUser(user.socketId, user, 'waiting');
 
         if (front) {
             this.waitingQueue.unshift(userObject);
@@ -59,16 +117,19 @@ class QueueService {
         return userObject;
     }
 
-    /**
-     * Remove user from queue
-     * @param {string} socketId - Socket ID of the user
-     * @returns {boolean} True if removed, false if not found
-     */
-    removeFromQueue(socketId) {
+    async removeFromQueue(socketId) {
+        const client = await this.getClient();
+        if (client) {
+            const removedCount = await client.lRem(this.queueKey, 0, socketId);
+            await client.hDel(this.statusKey, socketId);
+            await client.del(this.userKey(socketId));
+            return removedCount > 0;
+        }
+
         const index = this.waitingQueue.findIndex(user => user.socketId === socketId);
 
         if (index !== -1) {
-            const removedUser = this.waitingQueue.splice(index, 1)[0];
+            this.waitingQueue.splice(index, 1);
             this.userStatus.delete(socketId);
             console.log(` User ${socketId} removed from queue. Queue size: ${this.waitingQueue.length}`);
             return true;
@@ -78,17 +139,29 @@ class QueueService {
         return false;
     }
 
-    getQueuePosition(socketId) {
+    async getQueuePosition(socketId) {
+        const client = await this.getClient();
+        if (client) {
+            const queue = await client.lRange(this.queueKey, 0, -1);
+            const index = queue.indexOf(socketId);
+            return index === -1 ? null : index + 1;
+        }
+
         const index = this.waitingQueue.findIndex(user => user.socketId === socketId);
         return index === -1 ? null : index + 1;
     }
 
-    /**
-     * Remove all queue status for a user, whether waiting or paired.
-     * @param {string} socketId - Socket ID of the user
-     * @returns {boolean} True if any state was removed
-     */
-    removeUser(socketId) {
+    async removeUser(socketId) {
+        const client = await this.getClient();
+        if (client) {
+            const [removedCount, removedStatus, removedUser] = await Promise.all([
+                client.lRem(this.queueKey, 0, socketId),
+                client.hDel(this.statusKey, socketId),
+                client.del(this.userKey(socketId))
+            ]);
+            return removedCount > 0 || removedStatus > 0 || removedUser > 0;
+        }
+
         const index = this.waitingQueue.findIndex(user => user.socketId === socketId);
         const removedFromQueue = index !== -1;
         if (removedFromQueue) {
@@ -98,33 +171,82 @@ class QueueService {
         return removedFromQueue || removedStatus;
     }
 
-    pruneUnavailableUsers(isAvailable) {
+    async pruneUnavailableUsers(isAvailable) {
+        const client = await this.getClient();
+        if (client) {
+            const queue = await client.lRange(this.queueKey, 0, -1);
+            let removed = 0;
+
+            for (const socketId of queue) {
+                if (!await isAvailable(socketId)) {
+                    if (await this.removeUser(socketId)) {
+                        removed += 1;
+                    }
+                }
+            }
+
+            return removed;
+        }
+
         const before = this.waitingQueue.length;
-        this.waitingQueue = this.waitingQueue.filter((user) => {
-            const keep = isAvailable(user.socketId);
-            if (!keep) {
+        const keptUsers = [];
+
+        for (const user of this.waitingQueue) {
+            if (await isAvailable(user.socketId)) {
+                keptUsers.push(user);
+            } else {
                 this.userStatus.delete(user.socketId);
             }
-            return keep;
-        });
+        }
 
+        this.waitingQueue = keptUsers;
         return before - this.waitingQueue.length;
     }
 
-    /**
-     * Get next pair of users from queue
-     * @returns {Array|null} Array of two users if available, null otherwise
-     */
-    getPair() {
+    async popNextWaitingUser(client) {
+        const socketId = await client.lPop(this.queueKey);
+        if (!socketId) return null;
+
+        const user = await this.getQueuedUser(client, socketId);
+        if (!user) {
+            await client.hDel(this.statusKey, socketId);
+            return null;
+        }
+
+        await client.hSet(this.statusKey, socketId, 'paired');
+        await client.set(this.userKey(socketId), JSON.stringify({ ...user, status: 'paired' }));
+        return { ...user, status: 'paired' };
+    }
+
+    async getPair() {
+        const client = await this.getClient();
+        if (client) {
+            const users = [];
+            const maxAttempts = Math.max(2, await client.lLen(this.queueKey));
+
+            for (let attempt = 0; attempt < maxAttempts && users.length < 2; attempt += 1) {
+                const user = await this.popNextWaitingUser(client);
+                if (user) users.push(user);
+            }
+
+            if (users.length < 2) {
+                for (const user of users.reverse()) {
+                    await this.requeueUser(user, { front: true });
+                }
+                return null;
+            }
+
+            console.log(`🔗 Pairing users: ${users[0].socketId} <-> ${users[1].socketId}`);
+            return users;
+        }
+
         if (this.waitingQueue.length < 2) {
             return null;
         }
 
-        // Get first two users from queue (FIFO)
         const user1 = this.waitingQueue.shift();
         const user2 = this.waitingQueue.shift();
 
-        // Update status
         this.userStatus.set(user1.socketId, 'paired');
         this.userStatus.set(user2.socketId, 'paired');
 
@@ -132,81 +254,136 @@ class QueueService {
         return [user1, user2];
     }
 
-    takeNextUser({ excludeSocketIds = new Set(), isAvailable = () => true } = {}) {
+    async takeNextUser({ excludeSocketIds = new Set(), isAvailable = () => true } = {}) {
         const excluded = excludeSocketIds instanceof Set ? excludeSocketIds : new Set(excludeSocketIds);
-        const index = this.waitingQueue.findIndex((user) => (
-            user?.socketId
-            && !excluded.has(user.socketId)
-            && isAvailable(user.socketId, user)
-        ));
+        const client = await this.getClient();
 
-        if (index === -1) return null;
+        if (client) {
+            const queue = await client.lRange(this.queueKey, 0, -1);
+            for (const socketId of queue) {
+                if (!socketId || excluded.has(socketId) || !await isAvailable(socketId)) {
+                    continue;
+                }
 
-        const [user] = this.waitingQueue.splice(index, 1);
-        this.userStatus.set(user.socketId, 'paired');
-        return user;
+                const removedCount = await client.lRem(this.queueKey, 1, socketId);
+                if (removedCount <= 0) continue;
+
+                const user = await this.getQueuedUser(client, socketId);
+                if (!user) {
+                    await client.hDel(this.statusKey, socketId);
+                    continue;
+                }
+
+                const pairedUser = { ...user, status: 'paired' };
+                await client.hSet(this.statusKey, socketId, 'paired');
+                await client.set(this.userKey(socketId), JSON.stringify(pairedUser));
+                return pairedUser;
+            }
+
+            return null;
+        }
+
+        for (let index = 0; index < this.waitingQueue.length; index += 1) {
+            const user = this.waitingQueue[index];
+            if (
+                user?.socketId
+                && !excluded.has(user.socketId)
+                && await isAvailable(user.socketId, user)
+            ) {
+                this.waitingQueue.splice(index, 1);
+                this.userStatus.set(user.socketId, 'paired');
+                return user;
+            }
+        }
+
+        return null;
     }
 
-    /**
-     * Check if user is in queue
-     * @param {string} socketId - Socket ID to check
-     * @returns {boolean} True if user is in queue
-     */
-    isInQueue(socketId) {
-        return this.waitingQueue.some(user => user.socketId === socketId);
+    async isInQueue(socketId) {
+        return (await this.getQueuePosition(socketId)) !== null;
     }
 
-    /**
-     * Get queue size
-     * @returns {number} Current queue size
-     */
-    getQueueSize() {
+    async getQueueSize() {
+        const client = await this.getClient();
+        if (client) {
+            return client.lLen(this.queueKey);
+        }
+
         return this.waitingQueue.length;
     }
 
-    /**
-     * Get user status
-     * @param {string} socketId - Socket ID to check
-     * @returns {string|null} User status or null if not found
-     */
-    getUserStatus(socketId) {
+    async getUserStatus(socketId) {
+        const client = await this.getClient();
+        if (client) {
+            return await client.hGet(this.statusKey, socketId) || null;
+        }
+
         return this.userStatus.get(socketId) || null;
     }
 
-    /**
-     * Update user status
-     * @param {string} socketId - Socket ID of user
-     * @param {string} status - New status
-     */
-    setUserStatus(socketId, status) {
+    async setUserStatus(socketId, status) {
+        const client = await this.getClient();
+        if (client) {
+            await client.hSet(this.statusKey, socketId, status);
+            const user = await this.getQueuedUser(client, socketId);
+            if (user) {
+                await client.set(this.userKey(socketId), JSON.stringify({ ...user, status }));
+            }
+            return;
+        }
+
         this.userStatus.set(socketId, status);
     }
 
-    /**
-     * Clear all data (useful for testing)
-     */
-    clear() {
+    async clear() {
+        const client = await this.getClient();
+        if (client) {
+            const keys = [];
+            for await (const key of client.scanIterator({ MATCH: redisKey('queue', '*'), COUNT: 100 })) {
+                keys.push(key);
+            }
+            if (keys.length > 0) {
+                await client.del(keys);
+            }
+            return;
+        }
+
         this.waitingQueue = [];
         this.userStatus.clear();
         console.log('Queue service cleared');
     }
 
-    /**
-     * Get queue statistics
-     * @returns {Object} Queue statistics
-     */
-    getStats() {
+    async getStats() {
+        const client = await this.getClient();
+        if (client) {
+            const [queueSize, statuses] = await Promise.all([
+                client.lLen(this.queueKey),
+                client.hVals(this.statusKey)
+            ]);
+
+            return {
+                queueSize,
+                totalUsers: statuses.length,
+                userStatuses: {
+                    waiting: statuses.filter(s => s === 'waiting').length,
+                    paired: statuses.filter(s => s === 'paired').length,
+                    disconnected: statuses.filter(s => s === 'disconnected').length,
+                    searching: statuses.filter(s => s === 'searching').length
+                }
+            };
+        }
+
         return {
             queueSize: this.waitingQueue.length,
             totalUsers: this.userStatus.size,
             userStatuses: {
                 waiting: [...this.userStatus.values()].filter(s => s === 'waiting').length,
                 paired: [...this.userStatus.values()].filter(s => s === 'paired').length,
-                disconnected: [...this.userStatus.values()].filter(s => s === 'disconnected').length
+                disconnected: [...this.userStatus.values()].filter(s => s === 'disconnected').length,
+                searching: [...this.userStatus.values()].filter(s => s === 'searching').length
             }
         };
     }
 }
 
-// Export singleton instance
 export default new QueueService();
