@@ -57,19 +57,30 @@ export async function requestMediaStream() {
     throw new Error("This browser does not support camera and microphone access.");
   }
 
-  return navigator.mediaDevices.getUserMedia({
+  const preferredConstraints = {
     audio: {
       echoCancellation: true,
       noiseSuppression: true,
       autoGainControl: true,
     },
     video: {
-      width: { ideal: 1280 },
-      height: { ideal: 720 },
-      frameRate: { ideal: 30, max: 30 },
-      facingMode: "user",
+      width: { ideal: 960, max: 1280 },
+      height: { ideal: 540, max: 720 },
+      frameRate: { ideal: 24, max: 30 },
+      facingMode: { ideal: "user" },
     },
-  });
+  };
+
+  try {
+    return await navigator.mediaDevices.getUserMedia(preferredConstraints);
+  } catch (error) {
+    if (error?.name === "NotAllowedError" || error?.name === "PermissionDeniedError") throw error;
+
+    return navigator.mediaDevices.getUserMedia({
+      audio: true,
+      video: { facingMode: { ideal: "user" } },
+    });
+  }
 }
 
 export async function createOffer(pc) {

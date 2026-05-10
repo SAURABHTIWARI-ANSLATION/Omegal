@@ -17,7 +17,26 @@ import { determineOfferer, getMediaErrorMessage, getSignalDescription, stopStrea
 
 export function useWebRTC({ listen = false } = {}) {
   const activeRoomRef = useRef(null);
+  const remoteStreamRef = useRef(null);
   const startingRef = useRef(false);
+
+  const resetRemoteStream = useCallback(() => {
+    remoteStreamRef.current = null;
+    useAppStore.getState().setRemoteStream(null);
+  }, []);
+
+  const publishRemoteTrack = useCallback((event) => {
+    const remoteStream = remoteStreamRef.current || new MediaStream();
+    remoteStreamRef.current = remoteStream;
+
+    const incomingTracks = event.streams?.[0]?.getTracks?.() || [];
+    [...incomingTracks, event.track].filter(Boolean).forEach((track) => {
+      const alreadyAdded = remoteStream.getTracks().some((item) => item.id === track.id);
+      if (!alreadyAdded) remoteStream.addTrack(track);
+    });
+
+    useAppStore.getState().setRemoteStream(new MediaStream(remoteStream.getTracks()));
+  }, []);
 
   const getSessionKey = useCallback((state) => {
     if (!state.roomId || !state.partnerId) return null;
@@ -42,10 +61,7 @@ export function useWebRTC({ listen = false } = {}) {
 
     const pc = createManagedPeerConnection({
       onIceCandidate: (candidate) => emitSignal(EVENTS.SEND_ICE_CANDIDATE, { candidate }),
-      onTrack: (event) => {
-        const remoteStream = event.streams?.[0] || new MediaStream([event.track]);
-        useAppStore.getState().setRemoteStream(remoteStream);
-      },
+      onTrack: publishRemoteTrack,
       onConnectionStateChange: (state) => {
         const store = useAppStore.getState();
         store.setRtcConnectionState(state);
@@ -74,7 +90,7 @@ export function useWebRTC({ listen = false } = {}) {
     addLocalTracks(pc, stream);
     useAppStore.getState().setRtcConnectionState("connecting");
     return pc;
-  }, [emitSignal]);
+  }, [emitSignal, publishRemoteTrack]);
 
   const startSession = useCallback(async () => {
     const state = useAppStore.getState();
@@ -85,6 +101,7 @@ export function useWebRTC({ listen = false } = {}) {
     startingRef.current = true;
     activeRoomRef.current = sessionKey;
     closePeerConnection();
+    resetRemoteStream();
 
     try {
       const pc = await createConnection();
@@ -103,7 +120,7 @@ export function useWebRTC({ listen = false } = {}) {
     } finally {
       startingRef.current = false;
     }
-  }, [createConnection, emitSignal, getSessionKey]);
+  }, [createConnection, emitSignal, getSessionKey, resetRemoteStream]);
 
   const toggleAudio = useCallback(() => {
     const state = useAppStore.getState();
@@ -146,6 +163,7 @@ export function useWebRTC({ listen = false } = {}) {
 
       if (state.queueStatus !== SESSION_STATUS.MATCHED && previousState.queueStatus === SESSION_STATUS.MATCHED) {
         activeRoomRef.current = null;
+        resetRemoteStream();
         closePeerConnection();
       }
     });
@@ -153,7 +171,7 @@ export function useWebRTC({ listen = false } = {}) {
     startSession();
 
     return () => unsubscribe();
-  }, [listen, startSession]);
+  }, [listen, resetRemoteStream, startSession]);
 
   useEffect(() => {
     if (!listen) return undefined;
@@ -220,8 +238,9 @@ export function useWebRTC({ listen = false } = {}) {
       socket.off(EVENTS.RECEIVE_ANSWER, handleReceiveAnswer);
       socket.off(EVENTS.RECEIVE_ICE_CANDIDATE, handleReceiveIce);
       closePeerConnection();
+      resetRemoteStream();
     };
-  }, [listen, createConnection, emitSignal, getSessionKey]);
+  }, [listen, createConnection, emitSignal, getSessionKey, resetRemoteStream]);
 
   return { toggleAudio, toggleVideo, stopLocalMedia };
 }
