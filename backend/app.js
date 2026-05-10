@@ -11,6 +11,9 @@ dotenv.config();
 // Import configurations and modules
 import { initializeSocketIO } from './config/socketConfig.js';
 import { corsConfig } from './config/corsConfig.js';
+import { capacityConfig } from './config/capacityConfig.js';
+import queueService from './services/queueService.js';
+import roomService from './services/roomService.js';
 import { createMemoryRateLimiter } from './utils/rateLimiter.js';
 
 // Get __dirname equivalent in ES modules
@@ -35,13 +38,45 @@ app.use(express.json({ limit: '16kb' }));
 app.use(express.urlencoded({ extended: true, limit: '16kb' }));
 
 // Initialize Socket.IO
-initializeSocketIO(httpServer);
+const io = initializeSocketIO(httpServer);
+
+const isAdminRequest = (req) => {
+    const adminToken = process.env.ADMIN_TOKEN;
+    if (!adminToken) return false;
+
+    const authorization = req.get('authorization') || '';
+    return req.get('x-admin-token') === adminToken || authorization === `Bearer ${adminToken}`;
+};
 
 // Health check route
 app.get('/health', (req, res) => {
     res.status(200).json({
         status: 'Server is running',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        connectedSockets: io.of('/').sockets.size,
+        queueSize: queueService.getQueueSize(),
+        activeRooms: roomService.getStats().totalRooms
+    });
+});
+
+app.get('/admin/metrics', (req, res) => {
+    if (!isAdminRequest(req)) {
+        res.status(401).json({ error: 'Unauthorized' });
+        return;
+    }
+
+    res.status(200).json({
+        timestamp: new Date().toISOString(),
+        uptimeSeconds: Math.round(process.uptime()),
+        memory: process.memoryUsage(),
+        capacity: {
+            connectedSockets: io.of('/').sockets.size,
+            queueSize: queueService.getQueueSize(),
+            activeRooms: roomService.getStats().totalRooms,
+            limits: capacityConfig
+        },
+        queue: queueService.getStats(),
+        rooms: roomService.getStats()
     });
 });
 
@@ -51,7 +86,8 @@ app.get('/', (req, res) => {
         message: 'Welcome to Omegle Chat Backend',
         version: '1.0.0',
         endpoints: {
-            health: '/health'
+            health: '/health',
+            metrics: '/admin/metrics'
         }
     });
 });

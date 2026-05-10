@@ -4,6 +4,7 @@
 
 import queueService from '../services/queueService.js';
 import roomService from '../services/roomService.js';
+import { capacityConfig, isLimitEnabled } from '../config/capacityConfig.js';
 import { generateRoomId } from '../utils/roomIdGenerator.js';
 import { consumeRateLimit } from '../utils/rateLimiter.js';
 import {
@@ -39,12 +40,75 @@ const isAuthorizedAdmin = (socket) => {
 const ROOM_CLEANUP_INTERVAL_MS = Number(process.env.ROOM_CLEANUP_INTERVAL_MS || 5 * 60 * 1000);
 let roomCleanupTimer = null;
 const nextPartnerLocks = new Set();
+let queueSizeBroadcastTimer = null;
+let lastQueueSizeBroadcastAt = 0;
+let pairingScheduled = false;
 
 const getSocketById = (io, socketId) => io.of('/').sockets.get(socketId) || null;
+const getConnectedSocketCount = (io) => io.of('/').sockets.size;
+const getActiveRoomCount = () => roomService.getStats().totalRooms;
 
-const emitQueueSize = (io) => {
+const emitQueueSizeNow = (io) => {
+    lastQueueSizeBroadcastAt = Date.now();
     io.emit('queue_size_updated', {
         queueSize: queueService.getQueueSize()
+    });
+};
+
+const emitQueueSize = (io, { immediate = false } = {}) => {
+    const intervalMs = capacityConfig.queueBroadcastIntervalMs;
+    if (immediate || !isLimitEnabled(intervalMs)) {
+        if (queueSizeBroadcastTimer) {
+            clearTimeout(queueSizeBroadcastTimer);
+            queueSizeBroadcastTimer = null;
+        }
+        emitQueueSizeNow(io);
+        return;
+    }
+
+    const elapsed = Date.now() - lastQueueSizeBroadcastAt;
+    if (elapsed >= intervalMs) {
+        emitQueueSizeNow(io);
+        return;
+    }
+
+    if (queueSizeBroadcastTimer) return;
+    queueSizeBroadcastTimer = setTimeout(() => {
+        queueSizeBroadcastTimer = null;
+        emitQueueSizeNow(io);
+    }, intervalMs - elapsed);
+    queueSizeBroadcastTimer.unref?.();
+};
+
+const getCapacitySnapshot = (io) => ({
+    connectedSockets: getConnectedSocketCount(io),
+    queueSize: queueService.getQueueSize(),
+    activeRooms: getActiveRoomCount(),
+    limits: capacityConfig
+});
+
+const hasConnectionCapacity = (io) => (
+    !isLimitEnabled(capacityConfig.maxConnectedSockets)
+    || getConnectedSocketCount(io) <= capacityConfig.maxConnectedSockets
+);
+
+const hasQueueCapacity = (socketId) => (
+    queueService.getUserStatus(socketId) === 'waiting'
+    || !isLimitEnabled(capacityConfig.maxQueueSize)
+    || queueService.getQueueSize() < capacityConfig.maxQueueSize
+);
+
+const hasRoomCapacity = () => (
+    !isLimitEnabled(capacityConfig.maxActiveRooms)
+    || getActiveRoomCount() < capacityConfig.maxActiveRooms
+);
+
+const schedulePairing = (io) => {
+    if (pairingScheduled) return;
+    pairingScheduled = true;
+    setImmediate(() => {
+        pairingScheduled = false;
+        checkAndPairUsers(io);
     });
 };
 
@@ -220,6 +284,16 @@ export const registerSocketControllers = (io) => {
     startRoomCleanup(io);
 
     io.on('connection', (socket) => {
+        if (!hasConnectionCapacity(io)) {
+            socket.emit('capacity_reached', {
+                message: 'Server is at capacity. Please try again shortly.',
+                retryAfterMs: capacityConfig.loadSheddingRetryAfterMs,
+                capacity: getCapacitySnapshot(io)
+            });
+            socket.disconnect(true);
+            return;
+        }
+
         console.log(`User connected: ${socket.id}`);
 
         socket.use((packet, next) => {
@@ -254,6 +328,15 @@ export const registerSocketControllers = (io) => {
                 const rawUserData = data?.userData || {};
                 if (!isValidUserData(rawUserData)) {
                     socket.emit('error', { message: 'Invalid user data' });
+                    return;
+                }
+
+                if (!hasQueueCapacity(socket.id)) {
+                    socket.emit('capacity_reached', {
+                        message: 'Queue is full. Please try again shortly.',
+                        retryAfterMs: capacityConfig.loadSheddingRetryAfterMs,
+                        capacity: getCapacitySnapshot(io)
+                    });
                     return;
                 }
 
@@ -509,7 +592,11 @@ export const registerSocketControllers = (io) => {
                     return;
                 }
 
-                socket.emit('room_stats', roomService.getStats({ includeRooms: true }));
+                socket.emit('room_stats', {
+                    ...roomService.getStats({ includeRooms: true }),
+                    queue: queueService.getStats(),
+                    capacity: getCapacitySnapshot(io)
+                });
             } catch (error) {
                 console.error('Error in get_room_stats:', error.message);
             }
@@ -686,7 +773,7 @@ const checkAndPairUsers = (io) => {
     const filledWaitingRooms = fillWaitingRooms(io);
     let pairedRooms = 0;
 
-    while (queueService.getQueueSize() >= 2) {
+    while (queueService.getQueueSize() >= 2 && pairedRooms < capacityConfig.maxPairsPerTick && hasRoomCapacity()) {
         const pair = queueService.getPair();
         if (!pair) break;
 
@@ -736,5 +823,9 @@ const checkAndPairUsers = (io) => {
 
     if (removedStaleUsers > 0 || filledWaitingRooms > 0 || pairedRooms > 0) {
         emitQueueSize(io);
+    }
+
+    if (queueService.getQueueSize() >= 2 && pairedRooms >= capacityConfig.maxPairsPerTick && hasRoomCapacity()) {
+        schedulePairing(io);
     }
 };
