@@ -2,6 +2,8 @@ import { randomUUID } from 'crypto';
 import { redisKey } from '../config/redisConfig.js';
 import { getRedisStateClient } from './redisClient.js';
 
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 class LockService {
     constructor() {
         this.localLocks = new Set();
@@ -47,8 +49,17 @@ class LockService {
         this.localLocks.delete(name);
     }
 
-    async run(name, ttlMs, fn) {
-        const token = await this.acquire(name, ttlMs);
+    async run(name, ttlMs, fn, { retries = 0, retryDelayMs = 25 } = {}) {
+        let token = null;
+
+        for (let attempt = 0; attempt <= retries; attempt += 1) {
+            token = await this.acquire(name, ttlMs);
+            if (token) break;
+            if (attempt < retries) {
+                await sleep(retryDelayMs);
+            }
+        }
+
         if (!token) return { acquired: false, result: null };
 
         try {

@@ -31,6 +31,17 @@ test('queue state can be cleared after users are paired', async () => {
     assert.equal(await queueService.getUserStatus('socket-b'), null);
 });
 
+test('leave queue does not erase paired user state', async () => {
+    await queueService.clear();
+
+    await queueService.addToQueue('socket-a', {});
+    await queueService.addToQueue('socket-b', {});
+    await queueService.getPair();
+
+    assert.equal(await queueService.removeFromQueue('socket-a'), false);
+    assert.equal(await queueService.getUserStatus('socket-a'), 'paired');
+});
+
 test('queue exposes positions and prunes unavailable waiting users', async () => {
     await queueService.clear();
 
@@ -145,6 +156,17 @@ test('room service rejects non-participant writes and expires inactive rooms', a
     assert.equal(expiredRooms.length, 1);
     assert.equal(await roomService.getRoom(room.roomId), null);
     assert.equal(await roomService.getRoomByUser('socket-a'), null);
+});
+
+test('room service preserves concurrent participant messages', async () => {
+    await roomService.clear();
+    const room = await roomService.createRoom('room_concurrent', 'socket-a', 'socket-b', {}, {});
+
+    await Promise.all(Array.from({ length: 20 }, (_, index) => (
+        roomService.addMessage(room.roomId, index % 2 === 0 ? 'socket-a' : 'socket-b', `message ${index}`)
+    )));
+
+    assert.equal((await roomService.getRoom(room.roomId)).messages.length, 20);
 });
 
 test('validations reject oversized signaling and sanitize user data', () => {

@@ -148,6 +148,7 @@ altfmegle/
 * `REDIS_KEY_PREFIX`: Prefix for app keys in Redis (default: `omegal`).
 * `REDIS_STATE_ENABLED`: Enables Redis queue/room/lock state when `REDIS_URL` is present.
 * `REDIS_SOCKET_ADAPTER_ENABLED`: Enables the Socket.IO Redis adapter when `REDIS_URL` is present.
+* `ROOM_WRITE_LOCK_TTL_MS`: Per-room write lock TTL for Redis-backed room updates.
 * `MAX_CONNECTED_SOCKETS`, `MAX_QUEUE_SIZE`, `MAX_ACTIVE_ROOMS`: Load-shedding limits.
 
 ### Frontend (`/frontend/.env`)

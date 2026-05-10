@@ -121,8 +121,10 @@ class QueueService {
         const client = await this.getClient();
         if (client) {
             const removedCount = await client.lRem(this.queueKey, 0, socketId);
-            await client.hDel(this.statusKey, socketId);
-            await client.del(this.userKey(socketId));
+            if (removedCount > 0) {
+                await client.hDel(this.statusKey, socketId);
+                await client.del(this.userKey(socketId));
+            }
             return removedCount > 0;
         }
 

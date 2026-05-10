@@ -1,5 +1,6 @@
 import { redisKey } from '../config/redisConfig.js';
 import { getRedisStateClient } from './redisClient.js';
+import lockService from './lockService.js';
 
 class RoomService {
     constructor() {
@@ -8,6 +9,7 @@ class RoomService {
         this.maxMessagesPerRoom = Number(process.env.MAX_ROOM_MESSAGES || 100);
         this.maxIceCandidatesPerRoom = Number(process.env.MAX_ROOM_ICE_CANDIDATES || 80);
         this.maxRoomAgeMs = Number(process.env.MAX_ROOM_AGE_MS || 2 * 60 * 60 * 1000);
+        this.roomWriteLockTtlMs = Number(process.env.ROOM_WRITE_LOCK_TTL_MS || 5000);
         this.roomsKey = redisKey('rooms', 'ids');
         this.userRoomKey = redisKey('rooms', 'user-map');
         this.roomKeyPrefix = redisKey('rooms', 'room');
@@ -29,6 +31,33 @@ class RoomService {
 
     async getClient() {
         return getRedisStateClient();
+    }
+
+    async withRoomWriteLock(roomId, operation) {
+        const result = await lockService.run(
+            `room-write:${roomId}`,
+            this.roomWriteLockTtlMs,
+            operation,
+            { retries: 20, retryDelayMs: 25 }
+        );
+
+        return result.acquired ? result.result : null;
+    }
+
+    async deleteRoomRecord(client, roomId, participants = []) {
+        if (client) {
+            if (participants.length > 0) {
+                await client.hDel(this.userRoomKey, participants.map((user) => user.socketId));
+            }
+            await client.sRem(this.roomsKey, roomId);
+            await client.del(this.roomKey(roomId));
+            return;
+        }
+
+        participants.forEach((user) => {
+            this.userRoomMap.delete(user.socketId);
+        });
+        this.rooms.delete(roomId);
     }
 
     async saveRoom(client, room) {
@@ -91,7 +120,7 @@ class RoomService {
             try {
                 return JSON.parse(raw);
             } catch {
-                await this.closeRoom(roomId);
+                await this.deleteRoomRecord(client, roomId);
                 return null;
             }
         }
@@ -172,52 +201,60 @@ class RoomService {
     }
 
     async resetWebRTCState(roomId) {
-        const client = await this.getClient();
-        const room = await this.getRoom(roomId);
-        if (!room) return null;
+        return this.withRoomWriteLock(roomId, async () => {
+            const client = await this.getClient();
+            const room = await this.getRoom(roomId);
+            if (!room) return null;
 
-        room.webrtcState = this.createWebRTCState();
-        room.messages = [];
-        this.touchRoom(room);
+            room.webrtcState = this.createWebRTCState();
+            room.messages = [];
+            this.touchRoom(room);
 
-        if (client) {
-            await this.saveRoom(client, room);
-        }
+            if (client) {
+                await this.saveRoom(client, room);
+            }
 
-        return room;
+            return room;
+        });
     }
 
     async bumpSessionVersion(roomId) {
-        const room = await this.resetWebRTCState(roomId);
-        if (!room) return null;
+        return this.withRoomWriteLock(roomId, async () => {
+            const client = await this.getClient();
+            const room = await this.getRoom(roomId);
+            if (!room) return null;
 
-        room.sessionVersion = (Number(room.sessionVersion) || 1) + 1;
-        this.touchRoom(room);
+            room.webrtcState = this.createWebRTCState();
+            room.messages = [];
+            room.sessionVersion = (Number(room.sessionVersion) || 1) + 1;
+            this.touchRoom(room);
 
-        const client = await this.getClient();
-        if (client) {
-            await this.saveRoom(client, room);
-        }
+            if (client) {
+                await this.saveRoom(client, room);
+            }
 
-        return room.sessionVersion;
+            return room.sessionVersion;
+        });
     }
 
     async addBlockedPartner(roomId, socketId) {
-        const client = await this.getClient();
-        const room = await this.getRoom(roomId);
-        if (!room || !socketId) return false;
+        return Boolean(await this.withRoomWriteLock(roomId, async () => {
+            const client = await this.getClient();
+            const room = await this.getRoom(roomId);
+            if (!room || !socketId) return false;
 
-        if (!Array.isArray(room.blockedPartnerIds)) {
-            room.blockedPartnerIds = [];
-        }
+            if (!Array.isArray(room.blockedPartnerIds)) {
+                room.blockedPartnerIds = [];
+            }
 
-        if (!room.blockedPartnerIds.includes(socketId)) {
-            room.blockedPartnerIds.push(socketId);
-        }
+            if (!room.blockedPartnerIds.includes(socketId)) {
+                room.blockedPartnerIds.push(socketId);
+            }
 
-        this.touchRoom(room);
-        if (client) await this.saveRoom(client, room);
-        return true;
+            this.touchRoom(room);
+            if (client) await this.saveRoom(client, room);
+            return true;
+        }));
     }
 
     async getBlockedPartnerIds(roomId) {
@@ -226,48 +263,52 @@ class RoomService {
     }
 
     async detachParticipant(roomId, socketId) {
-        const client = await this.getClient();
-        const room = await this.getRoom(roomId);
-        const participantKey = this.getParticipantKey(room, socketId);
-        if (!room || !participantKey) return null;
+        return this.withRoomWriteLock(roomId, async () => {
+            const client = await this.getClient();
+            const room = await this.getRoom(roomId);
+            const participantKey = this.getParticipantKey(room, socketId);
+            if (!room || !participantKey) return null;
 
-        const detachedUser = room[participantKey];
-        room[participantKey] = null;
-        room.status = this.getParticipants(room).length > 0 ? 'waiting' : 'closed';
-        this.touchRoom(room);
+            const detachedUser = room[participantKey];
+            room[participantKey] = null;
+            room.status = this.getParticipants(room).length > 0 ? 'waiting' : 'closed';
+            this.touchRoom(room);
 
-        if (client) {
-            await client.hDel(this.userRoomKey, socketId);
-            await this.saveRoom(client, room);
-        } else {
-            this.userRoomMap.delete(socketId);
-        }
+            if (client) {
+                await client.hDel(this.userRoomKey, socketId);
+                await this.saveRoom(client, room);
+            } else {
+                this.userRoomMap.delete(socketId);
+            }
 
-        return detachedUser;
+            return detachedUser;
+        });
     }
 
     async attachParticipant(roomId, user) {
-        const client = await this.getClient();
-        const room = await this.getRoom(roomId);
-        if (!room || !user?.socketId || this.getParticipantKey(room, user.socketId)) return null;
+        return this.withRoomWriteLock(roomId, async () => {
+            const client = await this.getClient();
+            const room = await this.getRoom(roomId);
+            if (!room || !user?.socketId || this.getParticipantKey(room, user.socketId)) return null;
 
-        const participantKey = !room.user1 ? 'user1' : !room.user2 ? 'user2' : null;
-        if (!participantKey) return null;
+            const participantKey = !room.user1 ? 'user1' : !room.user2 ? 'user2' : null;
+            if (!participantKey) return null;
 
-        room[participantKey] = {
-            ...user,
-            socketId: user.socketId
-        };
-        room.status = this.getParticipants(room).length === 2 ? 'active' : 'waiting';
-        this.touchRoom(room);
+            room[participantKey] = {
+                ...user,
+                socketId: user.socketId
+            };
+            room.status = this.getParticipants(room).length === 2 ? 'active' : 'waiting';
+            this.touchRoom(room);
 
-        if (client) {
-            await this.saveRoom(client, room);
-        } else {
-            this.userRoomMap.set(user.socketId, roomId);
-        }
+            if (client) {
+                await this.saveRoom(client, room);
+            } else {
+                this.userRoomMap.set(user.socketId, roomId);
+            }
 
-        return room[participantKey];
+            return room[participantKey];
+        });
     }
 
     async getWaitingRooms() {
@@ -279,111 +320,112 @@ class RoomService {
     }
 
     async addMessage(roomId, socketId, message) {
-        const client = await this.getClient();
-        const room = await this.getRoom(roomId);
-        if (room && this.getParticipantKey(room, socketId)) {
-            room.messages.push({
-                socketId,
-                message: message.trim().slice(0, 1000),
-                timestamp: Date.now()
-            });
-            if (room.messages.length > this.maxMessagesPerRoom) {
-                room.messages.splice(0, room.messages.length - this.maxMessagesPerRoom);
+        return Boolean(await this.withRoomWriteLock(roomId, async () => {
+            const client = await this.getClient();
+            const room = await this.getRoom(roomId);
+            if (room && this.getParticipantKey(room, socketId)) {
+                room.messages.push({
+                    socketId,
+                    message: message.trim().slice(0, 1000),
+                    timestamp: Date.now()
+                });
+                if (room.messages.length > this.maxMessagesPerRoom) {
+                    room.messages.splice(0, room.messages.length - this.maxMessagesPerRoom);
+                }
+                this.touchRoom(room);
+                if (client) await this.saveRoom(client, room);
+                console.log(`💬 Message added to room ${roomId}`);
+                return true;
             }
-            this.touchRoom(room);
-            if (client) await this.saveRoom(client, room);
-            console.log(`💬 Message added to room ${roomId}`);
-            return true;
-        }
-        return false;
+            return false;
+        }));
     }
 
     async storeOffer(roomId, socketId, offer) {
-        const client = await this.getClient();
-        const room = await this.getRoom(roomId);
-        const participantKey = this.getParticipantKey(room, socketId);
-        if (room && participantKey) {
-            if (participantKey === 'user1') {
-                room.webrtcState.user1Offer = offer;
-            } else {
-                room.webrtcState.user2Offer = offer;
+        return Boolean(await this.withRoomWriteLock(roomId, async () => {
+            const client = await this.getClient();
+            const room = await this.getRoom(roomId);
+            const participantKey = this.getParticipantKey(room, socketId);
+            if (room && participantKey) {
+                if (participantKey === 'user1') {
+                    room.webrtcState.user1Offer = offer;
+                } else {
+                    room.webrtcState.user2Offer = offer;
+                }
+                this.touchRoom(room);
+                if (client) await this.saveRoom(client, room);
+                console.log(`📤 Offer stored for room ${roomId}`);
+                return true;
             }
-            this.touchRoom(room);
-            if (client) await this.saveRoom(client, room);
-            console.log(`📤 Offer stored for room ${roomId}`);
-            return true;
-        }
-        return false;
+            return false;
+        }));
     }
 
     async storeAnswer(roomId, socketId, answer) {
-        const client = await this.getClient();
-        const room = await this.getRoom(roomId);
-        const participantKey = this.getParticipantKey(room, socketId);
-        if (room && participantKey) {
-            if (participantKey === 'user1') {
-                room.webrtcState.user1Answer = answer;
-            } else {
-                room.webrtcState.user2Answer = answer;
+        return Boolean(await this.withRoomWriteLock(roomId, async () => {
+            const client = await this.getClient();
+            const room = await this.getRoom(roomId);
+            const participantKey = this.getParticipantKey(room, socketId);
+            if (room && participantKey) {
+                if (participantKey === 'user1') {
+                    room.webrtcState.user1Answer = answer;
+                } else {
+                    room.webrtcState.user2Answer = answer;
+                }
+                this.touchRoom(room);
+                if (client) await this.saveRoom(client, room);
+                console.log(`📥 Answer stored for room ${roomId}`);
+                return true;
             }
-            this.touchRoom(room);
-            if (client) await this.saveRoom(client, room);
-            console.log(`📥 Answer stored for room ${roomId}`);
-            return true;
-        }
-        return false;
+            return false;
+        }));
     }
 
     async addICECandidate(roomId, socketId, candidate) {
-        const client = await this.getClient();
-        const room = await this.getRoom(roomId);
-        if (room && this.getParticipantKey(room, socketId)) {
-            room.webrtcState.iceCandidates.push({
-                ...candidate,
-                timestamp: Date.now()
-            });
-            if (room.webrtcState.iceCandidates.length > this.maxIceCandidatesPerRoom) {
-                room.webrtcState.iceCandidates.splice(0, room.webrtcState.iceCandidates.length - this.maxIceCandidatesPerRoom);
+        return Boolean(await this.withRoomWriteLock(roomId, async () => {
+            const client = await this.getClient();
+            const room = await this.getRoom(roomId);
+            if (room && this.getParticipantKey(room, socketId)) {
+                room.webrtcState.iceCandidates.push({
+                    ...candidate,
+                    timestamp: Date.now()
+                });
+                if (room.webrtcState.iceCandidates.length > this.maxIceCandidatesPerRoom) {
+                    room.webrtcState.iceCandidates.splice(0, room.webrtcState.iceCandidates.length - this.maxIceCandidatesPerRoom);
+                }
+                this.touchRoom(room);
+                if (client) await this.saveRoom(client, room);
+                return true;
             }
-            this.touchRoom(room);
-            if (client) await this.saveRoom(client, room);
-            return true;
-        }
-        return false;
+            return false;
+        }));
     }
 
     async closeRoom(roomId) {
-        const client = await this.getClient();
-        const room = await this.getRoom(roomId);
-        if (!room) return false;
+        return Boolean(await this.withRoomWriteLock(roomId, async () => {
+            const client = await this.getClient();
+            const room = await this.getRoom(roomId);
+            if (!room) return false;
 
-        const participants = this.getParticipants(room);
-        if (client) {
-            if (participants.length > 0) {
-                await client.hDel(this.userRoomKey, participants.map((user) => user.socketId));
-            }
-            await client.sRem(this.roomsKey, roomId);
-            await client.del(this.roomKey(roomId));
-        } else {
-            participants.forEach((user) => {
-                this.userRoomMap.delete(user.socketId);
-            });
-            this.rooms.delete(roomId);
-        }
+            await this.deleteRoomRecord(client, roomId, this.getParticipants(room));
 
-        console.log(`🏚️ Room deleted: ${roomId}`);
-        return true;
+            console.log(`🏚️ Room deleted: ${roomId}`);
+            return true;
+        }));
     }
 
     async closeExpiredRooms(now = Date.now()) {
         const rooms = await this.getAllRooms();
         const expiredRooms = rooms.filter((room) => now - room.lastActivityAt >= this.maxRoomAgeMs);
+        const closedRooms = [];
 
         for (const room of expiredRooms) {
-            await this.closeRoom(room.roomId);
+            if (await this.closeRoom(room.roomId)) {
+                closedRooms.push(room);
+            }
         }
 
-        return expiredRooms;
+        return closedRooms;
     }
 
     async roomExists(roomId) {

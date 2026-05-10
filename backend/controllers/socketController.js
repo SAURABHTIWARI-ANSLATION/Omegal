@@ -645,93 +645,115 @@ export const registerSocketControllers = (io) => {
 const handleNextPartner = async (io, socket, data = {}) => {
     try {
         const lockResult = await lockService.run(`next-partner:${socket.id}`, 10000, async () => {
-            const room = await roomService.getRoomByUser(socket.id);
-            if (!room) {
+            const initialRoom = await roomService.getRoomByUser(socket.id);
+            if (!initialRoom) {
                 socket.emit('error', { message: 'Not in any room' });
                 return;
             }
 
-            if (data.roomId && data.roomId !== room.roomId) return;
-            if (data.sessionVersion !== undefined && Number(data.sessionVersion) !== Number(room.sessionVersion || 1)) return;
+            const roomLock = await lockService.run(
+                `room-flow:${initialRoom.roomId}`,
+                10000,
+                async () => {
+                    const room = await roomService.getRoomByUser(socket.id);
+                    if (!room) {
+                        socket.emit('error', { message: 'Not in any room' });
+                        return;
+                    }
 
-            const currentPartnerId = await roomService.getPartner(room.roomId, socket.id);
-            await queueService.removeUser(socket.id);
-            await queueService.setUserStatus(socket.id, 'searching');
+                    if (data.roomId && data.roomId !== room.roomId) return;
+                    if (data.sessionVersion !== undefined && Number(data.sessionVersion) !== Number(room.sessionVersion || 1)) return;
 
-            if (!currentPartnerId) {
+                    const currentPartnerId = await roomService.getPartner(room.roomId, socket.id);
+                    await queueService.removeUser(socket.id);
+                    await queueService.setUserStatus(socket.id, 'searching');
+
+                    if (!currentPartnerId) {
+                        socket.emit('next_partner_waiting', {
+                            roomId: room.roomId,
+                            sessionVersion: room.sessionVersion || 1,
+                            message: 'Looking for a new partner...',
+                            queueSize: await queueService.getQueueSize()
+                        });
+                        await fillWaitingRooms(io, { onlyRoomId: room.roomId });
+                        emitQueueSize(io);
+                        return;
+                    }
+
+                    const currentPartner = roomService.getParticipant(room, currentPartnerId);
+                    const partnerConnected = await socketExists(io, currentPartnerId);
+
+                    await roomService.addBlockedPartner(room.roomId, currentPartnerId);
+                    await roomService.bumpSessionVersion(room.roomId);
+                    const waitingRoom = await roomService.getRoom(room.roomId);
+                    if (!waitingRoom) {
+                        socket.emit('error', { message: 'Room is no longer available' });
+                        return;
+                    }
+
+                    emitPeerReset(io, socket.id, {
+                        roomId: waitingRoom.roomId,
+                        sessionVersion: waitingRoom.sessionVersion,
+                        reason: 'next_partner',
+                        message: 'Looking for a new partner...'
+                    });
+                    emitPeerReset(io, currentPartnerId, {
+                        roomId: waitingRoom.roomId,
+                        sessionVersion: waitingRoom.sessionVersion,
+                        reason: 'partner_moved_on',
+                        message: 'Waiting for another user...'
+                    });
+
+                    await leaveSocketRoom(io, currentPartnerId, waitingRoom.roomId);
+                    const detachedPartner = await roomService.detachParticipant(waitingRoom.roomId, currentPartnerId) || currentPartner;
+
+                    socket.emit('next_partner_waiting', {
+                        roomId: waitingRoom.roomId,
+                        sessionVersion: waitingRoom.sessionVersion,
+                        message: 'Looking for a new partner...',
+                        queueSize: await queueService.getQueueSize()
+                    });
+
+                    if (partnerConnected && detachedPartner?.socketId) {
+                        await queueService.requeueUser({
+                            ...detachedPartner,
+                            socketId: currentPartnerId,
+                            chatMode: detachedPartner.chatMode || room.chatMode
+                        });
+
+                        io.to(currentPartnerId).emit('partner_waiting', {
+                            oldRoomId: waitingRoom.roomId,
+                            oldSessionVersion: waitingRoom.sessionVersion,
+                            message: 'Waiting for another user...',
+                            queueSize: await queueService.getQueueSize()
+                        });
+                        io.to(currentPartnerId).emit('queue_joined', {
+                            message: 'Waiting for another user...',
+                            queuePosition: await queueService.getQueuePosition(currentPartnerId),
+                            queueSize: await queueService.getQueueSize()
+                        });
+                    } else {
+                        await queueService.removeUser(currentPartnerId);
+                    }
+
+                    await fillWaitingRooms(io, {
+                        onlyRoomId: waitingRoom.roomId,
+                        excludeSocketIds: new Set([currentPartnerId])
+                    });
+                    await checkAndPairUsers(io);
+                    emitQueueSize(io);
+                },
+                { retries: 5, retryDelayMs: 40 }
+            );
+
+            if (!roomLock.acquired) {
                 socket.emit('next_partner_waiting', {
-                    roomId: room.roomId,
-                    sessionVersion: room.sessionVersion || 1,
+                    roomId: initialRoom.roomId,
+                    sessionVersion: initialRoom.sessionVersion || 1,
                     message: 'Looking for a new partner...',
                     queueSize: await queueService.getQueueSize()
                 });
-                await fillWaitingRooms(io, { onlyRoomId: room.roomId });
-                emitQueueSize(io);
-                return;
             }
-
-            const currentPartner = roomService.getParticipant(room, currentPartnerId);
-            const partnerConnected = await socketExists(io, currentPartnerId);
-
-            await roomService.addBlockedPartner(room.roomId, currentPartnerId);
-            await roomService.bumpSessionVersion(room.roomId);
-            const waitingRoom = await roomService.getRoom(room.roomId);
-            if (!waitingRoom) {
-                socket.emit('error', { message: 'Room is no longer available' });
-                return;
-            }
-
-            emitPeerReset(io, socket.id, {
-                roomId: waitingRoom.roomId,
-                sessionVersion: waitingRoom.sessionVersion,
-                reason: 'next_partner',
-                message: 'Looking for a new partner...'
-            });
-            emitPeerReset(io, currentPartnerId, {
-                roomId: waitingRoom.roomId,
-                sessionVersion: waitingRoom.sessionVersion,
-                reason: 'partner_moved_on',
-                message: 'Waiting for another user...'
-            });
-
-            await leaveSocketRoom(io, currentPartnerId, waitingRoom.roomId);
-            const detachedPartner = await roomService.detachParticipant(waitingRoom.roomId, currentPartnerId) || currentPartner;
-
-            socket.emit('next_partner_waiting', {
-                roomId: waitingRoom.roomId,
-                sessionVersion: waitingRoom.sessionVersion,
-                message: 'Looking for a new partner...',
-                queueSize: await queueService.getQueueSize()
-            });
-
-            if (partnerConnected && detachedPartner?.socketId) {
-                await queueService.requeueUser({
-                    ...detachedPartner,
-                    socketId: currentPartnerId,
-                    chatMode: detachedPartner.chatMode || room.chatMode
-                });
-
-                io.to(currentPartnerId).emit('partner_waiting', {
-                    oldRoomId: waitingRoom.roomId,
-                    oldSessionVersion: waitingRoom.sessionVersion,
-                    message: 'Waiting for another user...',
-                    queueSize: await queueService.getQueueSize()
-                });
-                io.to(currentPartnerId).emit('queue_joined', {
-                    message: 'Waiting for another user...',
-                    queuePosition: await queueService.getQueuePosition(currentPartnerId),
-                    queueSize: await queueService.getQueueSize()
-                });
-            } else {
-                await queueService.removeUser(currentPartnerId);
-            }
-
-            await fillWaitingRooms(io, {
-                onlyRoomId: waitingRoom.roomId,
-                excludeSocketIds: new Set([currentPartnerId])
-            });
-            await checkAndPairUsers(io);
-            emitQueueSize(io);
         });
 
         if (!lockResult.acquired) {
@@ -752,7 +774,7 @@ const handleNextPartner = async (io, socket, data = {}) => {
  * @param {string} socketId - Disconnected user's socket ID
  */
 const handleUserDisconnect = async (io, socketId, options = {}) => {
-    const { reason = 'disconnect' } = options;
+    const { reason = 'disconnect', attempt = 0 } = options;
     const room = await roomService.getRoomByUser(socketId);
     const removedQueueUser = await queueService.removeUser(socketId);
     if (!room && !removedQueueUser) return;
@@ -760,21 +782,38 @@ const handleUserDisconnect = async (io, socketId, options = {}) => {
     console.log(`🔴 User disconnected: ${socketId}`);
 
     if (room) {
-        const partner = await roomService.getPartner(room.roomId, socketId);
-        await leaveSocketRoom(io, socketId, room.roomId);
+        const roomLock = await lockService.run(
+            `room-flow:${room.roomId}`,
+            10000,
+            async () => {
+                const activeRoom = await roomService.getRoomByUser(socketId);
+                if (!activeRoom) return;
 
-        // Notify partner about disconnection
-        if (partner) {
-            await leaveSocketRoom(io, partner, room.roomId);
-            io.to(partner).emit('partner_disconnected', {
-                message: reason === 'joining_queue' ? 'Your partner is searching for a new chat' : 'Your partner has disconnected',
-                roomId: room.roomId
-            });
-            await queueService.removeUser(partner);
+                const partner = await roomService.getPartner(activeRoom.roomId, socketId);
+                await leaveSocketRoom(io, socketId, activeRoom.roomId);
+
+                if (partner) {
+                    await leaveSocketRoom(io, partner, activeRoom.roomId);
+                    io.to(partner).emit('partner_disconnected', {
+                        message: reason === 'joining_queue' ? 'Your partner is searching for a new chat' : 'Your partner has disconnected',
+                        roomId: activeRoom.roomId,
+                        sessionVersion: activeRoom.sessionVersion || 1
+                    });
+                    await queueService.removeUser(partner);
+                }
+
+                await roomService.closeRoom(activeRoom.roomId);
+            },
+            { retries: 5, retryDelayMs: 50 }
+        );
+
+        if (!roomLock.acquired && attempt < 3) {
+            const retryTimer = setTimeout(() => {
+                void handleUserDisconnect(io, socketId, { reason, attempt: attempt + 1 });
+            }, 150);
+            retryTimer.unref?.();
+            return;
         }
-
-        // Close room
-        await roomService.closeRoom(room.roomId);
     }
 
     // Update stats
