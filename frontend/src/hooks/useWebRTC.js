@@ -11,6 +11,7 @@ import {
   createOffer,
   getActivePeerConnection,
   requestMediaStream,
+  setManagedAudioEnabled,
 } from "../services/webrtc.js";
 import { useAppStore } from "../store/appStore.js";
 import { determineOfferer, getMediaErrorMessage, getSignalDescription, stopStream } from "../utils/helpers.js";
@@ -192,9 +193,7 @@ export function useWebRTC({ listen = false } = {}) {
     const state = useAppStore.getState();
     if (!state.localStream) return;
     const enabled = !state.audioEnabled;
-    state.localStream.getAudioTracks().forEach((track) => {
-      track.enabled = enabled;
-    });
+    setManagedAudioEnabled(state.localStream, enabled);
     state.setMediaEnabled({ audioEnabled: enabled });
   }, []);
 
