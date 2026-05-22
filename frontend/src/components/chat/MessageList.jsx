@@ -40,13 +40,13 @@ export default function MessageList({ compact = false }) {
       role="log"
       aria-live="polite"
       className={cn(
-        "min-h-0 flex-1 overscroll-contain overflow-y-auto overflow-x-hidden bg-black/10 [overflow-anchor:none]",
+        "min-h-0 flex-1 overscroll-contain overflow-y-auto overflow-x-hidden bg-white/[0.35] [overflow-anchor:none]",
         compact ? "px-2 py-2 sm:px-3 sm:py-3" : "px-3 py-3 sm:px-4 sm:py-4"
       )}
     >
       {messages.length === 0 ? (
-        <div className={cn("flex min-h-full flex-col items-center justify-center bg-[radial-gradient(circle_at_50%_35%,rgba(96,165,250,0.12),transparent_32%)] px-4 text-center text-sm leading-6 text-white/45", compact && "text-xs leading-5")}>
-          <span className={cn("liquid-icon mb-3 flex h-11 w-11 items-center justify-center rounded-2xl text-white/70", compact && "mb-2 h-9 w-9")}>
+        <div className={cn("flex min-h-full flex-col items-center justify-center bg-[radial-gradient(circle_at_50%_35%,rgba(0,113,227,0.08),transparent_34%)] px-4 text-center text-sm leading-6 text-[#6e6e73]", compact && "text-xs leading-5")}>
+          <span className={cn("liquid-icon mb-3 flex h-11 w-11 items-center justify-center rounded-2xl text-[#0071e3]", compact && "mb-2 h-9 w-9")}>
             <MessagesSquare className="h-5 w-5" />
           </span>
           Say hello when your partner arrives.
@@ -68,16 +68,16 @@ export default function MessageList({ compact = false }) {
                 >
                   <div
                     className={cn(
-                      "min-w-[4.75rem] rounded-lg text-sm leading-6 shadow-sm",
+                      "min-w-[4.75rem] text-sm leading-6 shadow-sm",
                       compact ? "max-w-[min(90%,34rem)] px-3 py-2" : "max-w-[min(84%,34rem)] px-3.5 py-2.5 sm:px-4 sm:py-3",
-                      isMine && "border border-cyan-200/18 bg-cyan-200/18 text-white shadow-cyan-950/20 backdrop-blur-xl",
-                      !isMine && !isSystem && "border border-white/14 bg-white/12 text-white/90 backdrop-blur-xl",
-                      isSystem && "max-w-full border border-white/12 bg-white/[0.08] px-3 py-2 text-xs text-white/52 backdrop-blur-xl"
+                      isMine && "rounded-[18px_18px_4px_18px] bg-[#0071e3] text-white shadow-[0_8px_24px_rgba(0,113,227,0.18)]",
+                      !isMine && !isSystem && "rounded-[18px_18px_18px_4px] bg-black/[0.06] text-[#1d1d1f]",
+                      isSystem && "max-w-full rounded-full border border-black/[0.06] bg-white/[0.80] px-3 py-2 text-xs text-[#6e6e73] backdrop-blur-xl"
                     )}
                   >
                     <p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{message.content}</p>
                     {!isSystem ? (
-                      <div className={cn("mt-1 min-h-3.5 text-[10px] font-semibold uppercase", isMine ? "text-cyan-50/58" : "text-white/36")}>
+                      <div className={cn("mt-1 min-h-3.5 text-[10px] font-semibold uppercase", isMine ? "text-white/[0.70]" : "text-[#86868b]")}>
                         {message.status === "sending" ? "Sending" : formatTime(message.timestamp)}
                       </div>
                     ) : null}

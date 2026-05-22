@@ -19,7 +19,7 @@ export default function VideoStage() {
   const isConnected = rtcConnectionState === "connected" || iceConnectionState === "connected";
   const isImmersive = isCinemaLayout;
   const localPreviewClass = cn(
-    "absolute right-3 z-20 aspect-video w-[min(42vw,17rem)] min-w-[7.5rem] rounded-[1.6rem] border-white/20 bg-black/35 shadow-[0_24px_90px_rgba(0,0,0,0.58)] backdrop-blur-2xl sm:right-6 sm:w-[min(28vw,21rem)] sm:min-w-[10rem]",
+    "absolute right-3 z-20 aspect-video w-[min(42vw,17rem)] min-w-[7.5rem] rounded-[1.6rem] border-2 border-white/90 bg-white/[0.70] shadow-[0_4px_20px_rgba(0,0,0,0.12)] backdrop-blur-2xl sm:right-6 sm:w-[min(28vw,21rem)] sm:min-w-[10rem]",
     isFullscreen
       ? "bottom-[calc(5.75rem+env(safe-area-inset-bottom))] sm:bottom-[calc(6.25rem+env(safe-area-inset-bottom))]"
       : "bottom-[calc(5.25rem+env(safe-area-inset-bottom))] sm:bottom-[calc(5.75rem+env(safe-area-inset-bottom))]"
@@ -52,24 +52,24 @@ export default function VideoStage() {
     <section
       ref={stageRef}
       className={cn(
-        "video-stage-panel relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-none border-0 bg-black text-white",
+        "video-stage-panel relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-none border-0 bg-[#f5f5f7] text-[#1d1d1f]",
         isFullscreen && "h-screen w-screen"
       )}
     >
       <div className="video-stage-header pointer-events-none absolute inset-x-3 top-3 z-40 flex shrink-0 items-center justify-between gap-2 sm:inset-x-5 sm:top-5">
         <div className="min-w-0">
-          <p className="liquid-pill hidden items-center gap-2 px-3 py-1.5 text-xs font-semibold text-white/72 sm:flex">
+          <p className="liquid-pill hidden items-center gap-2 px-3 py-1.5 text-xs font-semibold text-[#6e6e73] sm:flex">
             <Sparkles className="h-3.5 w-3.5" />
             Private room
           </p>
-          <h2 className="video-stage-title mt-2 hidden truncate text-2xl font-black tracking-[-0.04em] text-white sm:block">Video conversation</h2>
+          <h2 className="video-stage-title mt-2 hidden truncate text-2xl font-semibold tracking-[-0.04em] text-[#1d1d1f] sm:block">Video conversation</h2>
         </div>
         <div className="pointer-events-auto flex min-w-0 shrink-0 items-center justify-end gap-1.5 sm:gap-2">
           <Badge variant="dark" className="hidden max-w-[10rem] sm:inline-flex lg:max-w-full">
-            {isConnected ? <SignalHigh className="h-3.5 w-3.5 text-teal-300" /> : <Radio className="h-3.5 w-3.5 text-indigo-300" />}
+            {isConnected ? <SignalHigh className="h-3.5 w-3.5 text-[#34c759]" /> : <Radio className="h-3.5 w-3.5 text-[#0071e3]" />}
             <span className="truncate">WebRTC {rtcConnectionState}</span>
           </Badge>
-          <span className={cn("h-2.5 w-2.5 rounded-full sm:hidden", isConnected ? "bg-teal-300 shadow-[0_0_14px_rgba(94,234,212,0.9)]" : "bg-indigo-300")} aria-label={`WebRTC ${rtcConnectionState}`} />
+          <span className={cn("h-2.5 w-2.5 rounded-full sm:hidden", isConnected ? "bg-[#34c759]" : "bg-[#0071e3]")} aria-label={`WebRTC ${rtcConnectionState}`} />
           <Button type="button" variant="subtle" size="sm" className="h-9 px-2.5 sm:h-9 sm:px-3" onClick={() => setIsCinemaLayout((value) => !value)}>
             {isCinemaLayout ? <Columns2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
             <span className="hidden sm:inline">{isCinemaLayout ? "Split" : "Maximize"}</span>
@@ -82,8 +82,8 @@ export default function VideoStage() {
       </div>
 
       {isImmersive ? (
-        <div className="relative min-h-0 flex-1 overflow-hidden bg-black">
-          <VideoTile stream={remoteStream} label="Stranger" className="absolute inset-0 h-full w-full rounded-none border-0" />
+        <div className="relative min-h-0 flex-1 overflow-hidden bg-[#e8e8ed]">
+          <VideoTile stream={remoteStream} label="Stranger" className="absolute inset-3 h-auto w-auto rounded-[20px] sm:inset-4" />
           <VideoTile stream={localStream} label="You" muted local fit="contain" className={localPreviewClass} />
           <div className="pointer-events-none absolute inset-x-3 bottom-4 z-30 flex justify-center sm:bottom-6">
             <MediaControls compact className="pointer-events-auto w-full max-w-[34rem]" />

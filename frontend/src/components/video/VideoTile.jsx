@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { Camera, Volume2, UserRound } from "lucide-react";
+import { Camera, Volume2 } from "lucide-react";
 import { cn } from "../../utils/helpers.js";
+import waitingMatch from "../../assets/illustrations/waiting_match.svg";
 
 export default function VideoTile({ stream, label, muted = false, local = false, fit = "cover", className }) {
   const videoRef = useRef(null);
@@ -80,7 +81,7 @@ export default function VideoTile({ stream, label, muted = false, local = false,
 
   return (
     <div
-      className={cn("group relative isolate min-h-0 overflow-hidden rounded-[1.6rem] border border-white/12 bg-black/40 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_20px_70px_rgba(0,0,0,0.34)] backdrop-blur-2xl", className)}
+      className={cn("group relative isolate min-h-0 overflow-hidden rounded-[1.6rem] border border-white/90 bg-[#e8e8ed] shadow-[0_4px_20px_rgba(0,0,0,0.08)] backdrop-blur-2xl", className)}
       onClick={shouldShowPlaybackPrompt ? unlockPlayback : undefined}
     >
       {stream ? (
@@ -92,32 +93,36 @@ export default function VideoTile({ stream, label, muted = false, local = false,
           muted={muted || audioUnlockNeeded}
           controls={false}
           preload="auto"
-          className={cn("h-full w-full bg-slate-950", fit === "contain" ? "object-contain" : "object-cover")}
+          className={cn("h-full w-full bg-[#e8e8ed]", fit === "contain" ? "object-contain" : "object-cover")}
         />
       ) : (
-        <div className="relative flex h-full min-h-full flex-col items-center justify-center overflow-hidden bg-black/28 text-center text-white/48">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_42%,rgba(59,130,246,0.18),transparent_28%),radial-gradient(circle_at_68%_62%,rgba(34,197,94,0.12),transparent_32%)]" />
-          <span className="relative flex h-14 w-14 items-center justify-center rounded-2xl border border-white/16 bg-white/12 shadow-[0_0_44px_rgba(96,165,250,0.18)] backdrop-blur-2xl">
-            {local ? <Camera className="h-7 w-7" /> : <UserRound className="h-7 w-7" />}
-          </span>
+        <div className="relative flex h-full min-h-full flex-col items-center justify-center overflow-hidden bg-[#e8e8ed] text-center text-[#6e6e73]">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_42%,rgba(0,113,227,0.10),transparent_30%),radial-gradient(circle_at_68%_62%,rgba(52,199,89,0.08),transparent_34%)]" />
+          {local ? (
+            <span className="relative flex h-14 w-14 items-center justify-center rounded-2xl border border-white/90 bg-white/[0.72] shadow-[0_8px_32px_rgba(0,113,227,0.10)] backdrop-blur-2xl">
+              <Camera className="h-7 w-7" />
+            </span>
+          ) : (
+            <img src={waitingMatch} alt="" aria-hidden="true" className="relative w-[min(42%,18rem)] max-w-xs" />
+          )}
           <p className="relative mt-4 px-4 text-sm">{local ? "Camera preview unavailable" : "Waiting for remote video"}</p>
         </div>
       )}
       {shouldShowPlaybackPrompt ? (
         <button
           type="button"
-          className="absolute inset-x-3 bottom-3 z-20 inline-flex items-center justify-center gap-2 rounded-lg border border-white/15 bg-black/65 px-3 py-2 text-xs font-bold text-white shadow-lg backdrop-blur-xl transition hover:bg-black/75 sm:inset-x-auto sm:right-3 sm:left-3"
+          className="absolute inset-x-3 bottom-3 z-20 inline-flex items-center justify-center gap-2 rounded-full border border-black/[0.08] bg-white/[0.88] px-3 py-2 text-xs font-semibold text-[#1d1d1f] shadow-lg backdrop-blur-xl transition hover:bg-white sm:inset-x-auto sm:right-3 sm:left-3"
           onClick={(event) => {
             event.stopPropagation();
             void unlockPlayback();
           }}
         >
-          <Volume2 className="h-4 w-4 text-teal-200" />
+          <Volume2 className="h-4 w-4 text-[#0071e3]" />
           {audioUnlockNeeded ? "Tap for audio" : "Tap to start video"}
         </button>
       ) : null}
-      <div className="liquid-pill absolute left-3 top-3 inline-flex max-w-[calc(100%-1.5rem)] items-center gap-2 px-2.5 py-1 text-xs font-semibold text-white/90 sm:left-4 sm:top-4 sm:px-3">
-        <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", stream ? "bg-teal-300 shadow-[0_0_12px_rgba(94,234,212,0.9)]" : "bg-slate-500")} />
+      <div className="liquid-pill absolute left-3 top-3 inline-flex max-w-[calc(100%-1.5rem)] items-center gap-2 px-2.5 py-1 text-xs font-semibold text-[#1d1d1f] sm:left-4 sm:top-4 sm:px-3">
+        <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", stream ? "bg-[#34c759]" : "bg-[#86868b]")} />
         {label}
       </div>
     </div>

@@ -1,11 +1,11 @@
 @import "tailwindcss";
 
 :root {
-  color-scheme: dark;
+  color-scheme: light;
   font-family:
-    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  background: #000;
-  color: #fff;
+    -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", Inter, "Segoe UI", sans-serif;
+  background: #f5f5f7;
+  color: #1d1d1f;
 }
 
 * {
@@ -21,7 +21,8 @@ body {
   min-height: 100vh;
   margin: 0;
   overflow-x: hidden;
-  background: #000;
+  background: #f5f5f7;
+  color: #1d1d1f;
 }
 
 button,
@@ -30,9 +31,17 @@ input {
   font: inherit;
 }
 
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
 ::selection {
-  background: rgba(147, 197, 253, 0.35);
-  color: #fff;
+  background: rgba(0, 113, 227, 0.18);
+  color: #1d1d1f;
 }
 
 ::-webkit-scrollbar {
@@ -41,30 +50,12 @@ input {
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(0, 0, 0, 0.04);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.22);
+  background: rgba(0, 0, 0, 0.18);
   border-radius: 8px;
-}
-
-.surface-panel {
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: rgba(255, 255, 255, 0.1);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.16),
-    0 24px 80px rgba(0, 0, 0, 0.34);
-  backdrop-filter: blur(26px) saturate(150%);
-}
-
-.media-panel {
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: rgba(255, 255, 255, 0.08);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.12),
-    0 24px 80px rgba(0, 0, 0, 0.38);
-  backdrop-filter: blur(28px) saturate(150%);
 }
 
 .apple-container {
@@ -74,46 +65,219 @@ input {
 
 .apple-section {
   position: relative;
+  overflow: hidden;
   padding-block: clamp(6rem, 11vw, 8.75rem);
 }
 
+.apple-section > * {
+  position: relative;
+  z-index: 1;
+}
+
+.surface-panel,
+.media-panel,
 .liquid-panel,
 .liquid-card,
 .liquid-button,
 .liquid-pill,
 .liquid-icon {
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.055)),
-    rgba(255, 255, 255, 0.075);
+  border: 0.5px solid rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.72);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.24),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.07),
-    0 28px 90px rgba(0, 0, 0, 0.34);
-  backdrop-filter: blur(28px) saturate(155%);
+    0 2px 8px rgba(0, 0, 0, 0.04),
+    0 8px 32px rgba(0, 0, 0, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 1);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  backdrop-filter: blur(28px) saturate(180%);
 }
 
 .liquid-card {
   transition:
     transform 700ms cubic-bezier(0.16, 1, 0.3, 1),
     border-color 700ms cubic-bezier(0.16, 1, 0.3, 1),
-    background 700ms cubic-bezier(0.16, 1, 0.3, 1);
+    background 700ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 700ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .liquid-card:hover {
-  border-color: rgba(255, 255, 255, 0.28);
+  transform: translateY(-4px);
+  border-color: rgba(255, 255, 255, 1);
+  background: rgba(255, 255, 255, 0.84);
+  box-shadow:
+    0 4px 14px rgba(0, 0, 0, 0.05),
+    0 18px 46px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 1);
+}
+
+.apple-navbar {
+  border-bottom: 0.5px solid rgba(0, 0, 0, 0.08);
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.7);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  backdrop-filter: blur(20px) saturate(180%);
+}
+
+.light-orbs {
+  position: fixed;
+  inset: 0;
+  z-index: -10;
+  overflow: hidden;
+  pointer-events: none;
+  background: #f5f5f7;
+}
+
+.light-orbs::before,
+.light-orbs::after,
+.light-orbs span {
+  position: absolute;
+  content: "";
+  border-radius: 999px;
+  filter: blur(120px);
+  pointer-events: none;
+}
+
+.light-orbs::before {
+  top: -7rem;
+  left: -9rem;
+  width: 34rem;
+  height: 34rem;
+  background: rgba(0, 113, 227, 0.07);
+}
+
+.light-orbs::after {
+  right: -10rem;
+  bottom: -8rem;
+  width: 38rem;
+  height: 38rem;
+  background: rgba(175, 82, 222, 0.06);
+}
+
+.light-orbs span {
+  top: 32%;
+  left: 38%;
+  width: 32rem;
+  height: 32rem;
+  background: rgba(52, 199, 89, 0.05);
+}
+
+.hero-glow::before,
+.features-glow::before,
+.how-glow::before,
+.stats-glow::before,
+.safety-glow::before,
+.chat-glow::before {
+  position: absolute;
+  z-index: 0;
+  pointer-events: none;
+  content: "";
+}
+
+.hero-glow::before {
+  top: -200px;
+  left: 50%;
+  width: 900px;
+  height: 900px;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(0, 113, 227, 0.1) 0%, rgba(175, 82, 222, 0.06) 40%, transparent 70%);
+  filter: blur(60px);
+}
+
+.features-glow::before {
+  inset: 0;
   background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.075)),
-    rgba(255, 255, 255, 0.1);
+    radial-gradient(ellipse at 20% 50%, rgba(52, 199, 89, 0.08) 0%, transparent 60%),
+    radial-gradient(ellipse at 80% 50%, rgba(0, 113, 227, 0.07) 0%, transparent 60%);
+}
+
+.how-glow::before {
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 0%, rgba(175, 82, 222, 0.09) 0%, transparent 55%);
+}
+
+.stats-glow::before {
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 50%, rgba(255, 159, 10, 0.08) 0%, transparent 60%);
+}
+
+.safety-glow::before {
+  inset: 0;
+  background: radial-gradient(ellipse at 30% 50%, rgba(255, 55, 95, 0.07) 0%, transparent 55%);
+}
+
+.chat-glow::before {
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 30%, rgba(0, 113, 227, 0.1) 0%, transparent 60%);
+}
+
+.apple-primary-cta {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: 0;
+  border-radius: 980px;
+  background: #0071e3;
+  padding: 12px 22px;
+  color: #fff;
+  font-size: 17px;
+  font-weight: 400;
+  line-height: 1;
+  transition: background 200ms ease, transform 200ms ease;
+}
+
+.apple-primary-cta:hover {
+  background: #0077ed;
+}
+
+.apple-secondary-cta {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  border: 0;
+  background: transparent;
+  padding: 12px 22px;
+  color: #0071e3;
+  font-size: 17px;
+  font-weight: 400;
+  line-height: 1;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  transition: color 200ms ease, transform 200ms ease;
+}
+
+.apple-secondary-cta:hover {
+  color: #0077ed;
+}
+
+.hero-illustration-card {
+  border: 0.5px solid rgba(255, 255, 255, 0.95);
+  border-radius: 32px;
+  background: rgba(255, 255, 255, 0.6);
+  box-shadow:
+    0 4px 16px rgba(0, 0, 0, 0.06),
+    0 24px 64px rgba(0, 0, 0, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 1);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  backdrop-filter: blur(20px) saturate(180%);
+  animation: float-hero 4s ease-in-out infinite alternate;
+}
+
+@keyframes float-hero {
+  from {
+    transform: translateY(0);
+  }
+
+  to {
+    transform: translateY(-12px);
+  }
 }
 
 .safe-bottom {
   padding-bottom: max(var(--safe-bottom-padding, 0.625rem), env(safe-area-inset-bottom));
-}
-
-.chat-video-layout {
-  gap: 0.5rem;
-  grid-template-rows: minmax(0, 1fr) minmax(12rem, 0.38fr);
 }
 
 .facetime-room .video-stage-panel {
@@ -126,8 +290,15 @@ input {
   right: 1rem;
   bottom: 1rem;
   z-index: 35;
-  width: min(23rem, calc(100vw - 2rem));
+  width: min(24rem, calc(100vw - 2rem));
   animation: chat-panel-in 700ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.chat-sidebar-panel {
+  border-left: 0.5px solid rgba(0, 0, 0, 0.08);
+  background: rgba(255, 255, 255, 0.88);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  backdrop-filter: blur(24px) saturate(180%);
 }
 
 @keyframes chat-panel-in {
@@ -142,96 +313,42 @@ input {
   }
 }
 
+.feature-icon {
+  display: flex;
+  width: 48px;
+  height: 48px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  padding: 12px;
+}
+
+.marketing-noise {
+  background-image:
+    linear-gradient(rgba(0, 0, 0, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.035) 1px, transparent 1px);
+  background-size: 44px 44px;
+}
+
 @media (max-width: 767px) {
   .chat-facetime-panel {
     top: auto;
     right: 0.75rem;
-    bottom: 5.6rem;
+    bottom: 5.7rem;
     left: 0.75rem;
     width: auto;
     max-height: 36dvh;
   }
 }
 
-@media (min-width: 640px) {
-  .chat-video-layout {
-    gap: 0.75rem;
-    grid-template-rows: minmax(0, 1fr) minmax(13rem, 0.36fr);
-  }
-}
-
-@media (min-width: 1024px) {
-  .chat-video-layout {
-    grid-template-columns: minmax(0, 1fr) 21rem;
-    grid-template-rows: minmax(0, 1fr);
-  }
-}
-
-@media (min-width: 1280px) {
-  .chat-video-layout {
-    grid-template-columns: minmax(0, 1fr) 23rem;
-  }
-}
-
 @media (max-width: 767px) and (max-height: 700px) {
-  .mobile-room-summary {
-    margin-bottom: 0.5rem;
-    padding: 0.375rem 0.5rem;
-  }
-
   .mobile-room-title,
   .video-stage-title {
     display: none;
   }
 
-  .chat-video-layout {
-    gap: 0.5rem;
-    grid-template-rows: minmax(0, 1fr) minmax(10.75rem, 0.34fr);
-  }
-
-  .video-stage-panel {
-    gap: 0.375rem;
-    padding: 0.375rem;
-  }
-
-  .video-stage-header {
-    padding-bottom: 0.375rem;
-  }
-
   .chat-sidebar-header {
     padding-top: 0.375rem;
     padding-bottom: 0.375rem;
-  }
-}
-
-@media (max-width: 380px) {
-  .chat-video-layout {
-    grid-template-rows: minmax(0, 1fr) minmax(10.75rem, 0.34fr);
-  }
-
-  .video-tile-grid {
-    gap: 0.375rem;
-  }
-}
-
-.marketing-noise {
-  background-image:
-    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
-  background-size: 44px 44px;
-}
-
-.float-soft {
-  animation: float-soft 7s ease-in-out infinite;
-}
-
-@keyframes float-soft {
-  0%,
-  100% {
-    transform: translate3d(0, 0, 0);
-  }
-
-  50% {
-    transform: translate3d(0, -10px, 0);
   }
 }
