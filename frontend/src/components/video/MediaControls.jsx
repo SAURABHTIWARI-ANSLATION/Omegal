@@ -23,8 +23,8 @@ export default function MediaControls({ compact = false, className }) {
   return (
     <div
       className={cn(
-        "safe-bottom flex shrink-0 flex-nowrap items-center justify-center rounded-lg border border-white/10 bg-white/10 backdrop-blur-xl",
-        compact ? "gap-1.5 p-1.5 [--safe-bottom-padding:0.25rem] sm:gap-2 sm:p-2" : "gap-2 p-2 [--safe-bottom-padding:0.5rem] sm:gap-3",
+        "safe-bottom flex shrink-0 flex-nowrap items-center justify-center rounded-full border border-white/18 bg-white/12 shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_24px_80px_rgba(0,0,0,0.45)] backdrop-blur-[28px]",
+        compact ? "gap-1.5 p-2 [--safe-bottom-padding:0.25rem] sm:gap-2 sm:p-2.5" : "gap-2 p-2.5 [--safe-bottom-padding:0.5rem] sm:gap-3",
         className
       )}
     >

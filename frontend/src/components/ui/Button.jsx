@@ -2,12 +2,12 @@ import { motion } from "framer-motion";
 import { cn } from "../../utils/helpers.js";
 
 const variants = {
-  primary: "bg-slate-950 text-white shadow-sm hover:bg-slate-800 focus-visible:ring-slate-950",
-  secondary: "border border-slate-300 bg-white text-slate-900 hover:bg-slate-50 focus-visible:ring-teal-600",
-  ghost: "text-slate-700 hover:bg-slate-100 focus-visible:ring-teal-600",
-  danger: "bg-rose-600 text-white hover:bg-rose-500 focus-visible:ring-rose-500",
-  subtle: "border border-slate-700 bg-slate-900 text-slate-100 hover:bg-slate-800 focus-visible:ring-teal-400",
-  success: "bg-teal-600 text-white hover:bg-teal-500 focus-visible:ring-teal-500",
+  primary: "border border-white/22 bg-white/16 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_18px_60px_rgba(0,0,0,0.24)] hover:bg-white/22 focus-visible:ring-cyan-200",
+  secondary: "border border-white/18 bg-white/12 text-white hover:bg-white/18 focus-visible:ring-cyan-200",
+  ghost: "border border-transparent text-white/78 hover:bg-white/10 hover:text-white focus-visible:ring-cyan-200",
+  danger: "border border-rose-200/28 bg-rose-400/18 text-white hover:bg-rose-400/26 focus-visible:ring-rose-200",
+  subtle: "border border-white/16 bg-white/10 text-white/88 hover:bg-white/16 focus-visible:ring-cyan-200",
+  success: "border border-emerald-200/28 bg-emerald-300/18 text-white hover:bg-emerald-300/26 focus-visible:ring-emerald-200",
 };
 
 const sizes = {
@@ -23,7 +23,7 @@ export default function Button({ variant = "primary", size = "md", className, ch
       whileHover={disabled ? undefined : { y: -1 }}
       whileTap={disabled ? undefined : { scale: 0.98 }}
       className={cn(
-        "inline-flex items-center justify-center gap-2 rounded-lg font-semibold transition outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-white disabled:cursor-not-allowed disabled:opacity-50",
+        "inline-flex items-center justify-center gap-2 rounded-full font-semibold shadow-black/20 backdrop-blur-2xl transition outline-none focus-visible:ring-2 focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-50",
         variants[variant],
         sizes[size],
         className
