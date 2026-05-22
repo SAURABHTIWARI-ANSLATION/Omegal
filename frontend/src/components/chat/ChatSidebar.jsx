@@ -18,7 +18,7 @@ export default function ChatSidebar({ compact = false, expanded = false, classNa
   const nextDisabled = isSwitchingPartner || queueStatus === SESSION_STATUS.SEARCHING;
 
   return (
-    <aside className={cn("chat-sidebar-panel flex min-h-0 flex-col overflow-hidden rounded-[1.75rem] border-l border-black/[0.08] bg-white/[0.88] shadow-[0_12px_42px_rgba(0,0,0,0.08)] backdrop-blur-2xl", expanded && "lg:col-span-2", className)}>
+    <aside className={cn("chat-sidebar-panel flex min-h-0 flex-col overflow-hidden rounded-[1.75rem] border border-black/[0.08] bg-white/[0.88] shadow-[0_12px_42px_rgba(0,0,0,0.08)] backdrop-blur-2xl", expanded && "lg:col-span-2", className)}>
       <div
         className={cn(
           "chat-sidebar-header flex shrink-0 items-center justify-between gap-2 border-b border-black/[0.08] bg-white/[0.70]",
@@ -35,13 +35,21 @@ export default function ChatSidebar({ compact = false, expanded = false, classNa
             <MessageCircle className={cn(compact ? "h-4 w-4" : "h-5 w-5")} />
           </span>
           <div className="min-w-0">
-            <h2 className="text-sm font-semibold leading-tight tracking-[-0.02em] text-[#1d1d1f]">Room chat</h2>
-            <p className={cn("truncate text-xs text-[#6e6e73]", compact && "max-sm:hidden")}>{messages.length} messages in this room</p>
+            <h2 className="text-sm font-semibold leading-tight tracking-[-0.02em] text-[#111115]">Room chat</h2>
+            <p className={cn("truncate text-xs text-[#62626c]", compact && "max-sm:hidden")}>{messages.length} messages in this room</p>
           </div>
         </div>
-        <Badge variant={canChat ? "success" : partnerDisconnected ? "warning" : "default"} className={cn(compact && "px-2 py-0.5 text-[11px]")}>
-          {canChat ? "Connected" : partnerDisconnected ? "Ended" : "Waiting"}
-        </Badge>
+        <div className="flex shrink-0 items-center gap-2">
+          <Badge variant={canChat ? "success" : partnerDisconnected ? "warning" : "default"} className={cn(compact && "px-2 py-0.5 text-[11px]")}>
+            {canChat ? "Connected" : partnerDisconnected ? "Ended" : "Waiting"}
+          </Badge>
+          {!compact && canChat ? (
+            <Button type="button" variant="subtle" size="sm" className="h-8 px-3 text-xs shadow-none" onClick={nextPartner} disabled={nextDisabled}>
+              <SkipForward className="h-3.5 w-3.5" />
+              Next
+            </Button>
+          ) : null}
+        </div>
       </div>
 
       {partnerDisconnected ? (

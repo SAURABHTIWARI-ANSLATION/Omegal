@@ -201,6 +201,10 @@ const createMatchPayload = (room, partnerUser, { reconnect = false } = {}) => ({
     message: 'Connected to stranger'
 });
 
+const isDesignatedOfferer = (socketId, partnerId) => (
+    Boolean(socketId && partnerId && socketId > partnerId)
+);
+
 const emitMatchedPair = (io, room, user1, user2, options = {}) => {
     io.to(room.roomId).emit('user_matched', {
         roomId: room.roomId,
@@ -495,6 +499,11 @@ export const registerSocketControllers = (io) => {
                 const context = await getRoomContext(socket, data);
                 if (!context) return;
 
+                if (!isDesignatedOfferer(socket.id, context.partnerId)) {
+                    socket.emit('error', { message: 'Only the offerer can send a WebRTC offer' });
+                    return;
+                }
+
                 // Store offer
                 await roomService.storeOffer(context.roomId, socket.id, data.offer);
 
@@ -527,6 +536,11 @@ export const registerSocketControllers = (io) => {
 
                 const context = await getRoomContext(socket, data);
                 if (!context) return;
+
+                if (isDesignatedOfferer(socket.id, context.partnerId)) {
+                    socket.emit('error', { message: 'Only the answerer can send a WebRTC answer' });
+                    return;
+                }
 
                 // Store answer
                 await roomService.storeAnswer(context.roomId, socket.id, data.answer);

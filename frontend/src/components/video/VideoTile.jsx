@@ -81,7 +81,7 @@ export default function VideoTile({ stream, label, muted = false, local = false,
 
   return (
     <div
-      className={cn("group relative isolate min-h-0 overflow-hidden rounded-[1.6rem] border border-white/90 bg-[#eef1f7] shadow-[0_4px_20px_rgba(0,0,0,0.08)] backdrop-blur-2xl", className)}
+      className={cn("video-tile group relative isolate min-h-0 overflow-hidden rounded-[1.6rem] border border-white/90 bg-[#eef1f7] shadow-[0_4px_20px_rgba(0,0,0,0.08)] backdrop-blur-2xl", className)}
       onClick={shouldShowPlaybackPrompt ? unlockPlayback : undefined}
     >
       {stream ? (
@@ -93,10 +93,10 @@ export default function VideoTile({ stream, label, muted = false, local = false,
           muted={muted || audioUnlockNeeded}
           controls={false}
           preload="auto"
-          className={cn("h-full w-full bg-[#eef1f7]", fit === "contain" ? "object-contain" : "object-cover")}
+          className={cn("h-full w-full bg-[#eef1f7] object-center", fit === "contain" ? "object-contain" : "object-cover")}
         />
       ) : (
-        <div className="relative flex h-full min-h-full flex-col items-center justify-center overflow-hidden bg-[#eef1f7] text-center text-[#62626c]">
+        <div className="video-placeholder relative flex h-full min-h-full flex-col items-center justify-center overflow-hidden bg-[#eef1f7] text-center text-[#62626c]">
           <img src={chatUiStudio} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover opacity-45 blur-[1px]" />
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_42%,rgba(0,113,227,0.18),transparent_30%),radial-gradient(circle_at_68%_62%,rgba(255,55,95,0.10),transparent_34%),linear-gradient(180deg,rgba(255,255,255,0.50),rgba(255,255,255,0.82))]" />
           {local ? (
@@ -124,7 +124,7 @@ export default function VideoTile({ stream, label, muted = false, local = false,
           {audioUnlockNeeded ? "Tap for audio" : "Tap to start video"}
         </button>
       ) : null}
-      <div className="liquid-pill absolute left-3 top-3 inline-flex max-w-[calc(100%-1.5rem)] items-center gap-2 px-2.5 py-1 text-xs font-semibold text-[#1d1d1f] sm:left-4 sm:top-4 sm:px-3">
+      <div className="video-tile-label liquid-pill absolute left-3 top-3 inline-flex max-w-[calc(100%-1.5rem)] items-center gap-2 px-2.5 py-1 text-xs font-semibold text-[#1d1d1f] sm:left-4 sm:top-4 sm:px-3">
         <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", stream ? "bg-[#34c759]" : "bg-[#86868b]")} />
         {label}
       </div>

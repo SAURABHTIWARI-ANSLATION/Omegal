@@ -70,7 +70,7 @@ export function getMediaErrorMessage(error) {
 
 export function determineOfferer(socketId, partnerId) {
   if (!socketId || !partnerId) return false;
-  return socketId.localeCompare(partnerId) > 0;
+  return socketId > partnerId;
 }
 
 export function stopStream(stream) {
