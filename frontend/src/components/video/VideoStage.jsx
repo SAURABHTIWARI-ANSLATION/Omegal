@@ -7,7 +7,7 @@ import MediaControls from "./MediaControls.jsx";
 import { useAppStore } from "../../store/appStore.js";
 import { cn } from "../../utils/helpers.js";
 
-export default function VideoStage() {
+export default function VideoStage({ className }) {
   const stageRef = useRef(null);
   const [isCinemaLayout, setIsCinemaLayout] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -19,7 +19,7 @@ export default function VideoStage() {
   const isConnected = rtcConnectionState === "connected" || iceConnectionState === "connected";
   const isImmersive = isCinemaLayout;
   const localPreviewClass = cn(
-    "absolute right-3 z-20 aspect-video w-[min(42vw,17rem)] min-w-[7.5rem] rounded-[1.6rem] border-2 border-white/90 bg-white/[0.70] shadow-[0_4px_20px_rgba(0,0,0,0.12)] backdrop-blur-2xl sm:right-6 sm:w-[min(28vw,21rem)] sm:min-w-[10rem]",
+    "absolute right-3 z-20 aspect-video w-[min(44vw,16rem)] min-w-[7.5rem] rounded-[1.6rem] border-2 border-white/90 bg-white/[0.70] shadow-[0_4px_20px_rgba(0,0,0,0.12)] backdrop-blur-2xl sm:right-6 sm:w-[min(26vw,19rem)] sm:min-w-[10rem]",
     isFullscreen
       ? "bottom-[calc(5.75rem+env(safe-area-inset-bottom))] sm:bottom-[calc(6.25rem+env(safe-area-inset-bottom))]"
       : "bottom-[calc(5.25rem+env(safe-area-inset-bottom))] sm:bottom-[calc(5.75rem+env(safe-area-inset-bottom))]"
@@ -53,7 +53,8 @@ export default function VideoStage() {
       ref={stageRef}
       className={cn(
         "video-stage-panel relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-none border-0 bg-[#f7f5ef] text-[#111115]",
-        isFullscreen && "h-screen w-screen"
+        className,
+        isFullscreen && "h-screen w-screen rounded-none"
       )}
     >
       <div className="video-stage-header pointer-events-none absolute inset-x-3 top-3 z-40 flex shrink-0 items-center justify-between gap-2 sm:inset-x-5 sm:top-5">
@@ -84,16 +85,16 @@ export default function VideoStage() {
       {isImmersive ? (
         <div className="relative min-h-0 flex-1 overflow-hidden bg-[#eef1f7]">
           <VideoTile stream={remoteStream} label="Stranger" className="absolute inset-3 h-auto w-auto rounded-[20px] sm:inset-4" />
-          <VideoTile stream={localStream} label="You" muted local fit="contain" className={localPreviewClass} />
+          <VideoTile stream={localStream} label="You" muted local className={localPreviewClass} />
           <div className="pointer-events-none absolute inset-x-3 bottom-4 z-30 flex justify-center sm:bottom-6">
             <MediaControls compact className="pointer-events-auto w-full max-w-[34rem]" />
           </div>
         </div>
       ) : (
         <>
-          <div className="video-tile-grid grid min-h-0 flex-1 grid-cols-2 grid-rows-1 gap-2 p-3 pt-24 sm:gap-4 sm:p-5 sm:pt-32">
-            <VideoTile stream={remoteStream} label="Stranger" fit="contain" className="h-full min-h-0 rounded-[2rem]" />
-            <VideoTile stream={localStream} label="You" muted local fit="contain" className="h-full min-h-0 rounded-[2rem]" />
+          <div className="video-tile-grid grid min-h-0 flex-1 grid-cols-1 grid-rows-2 gap-2 p-3 pb-24 pt-20 sm:gap-4 sm:p-5 sm:pb-28 sm:pt-28 xl:grid-cols-2 xl:grid-rows-1">
+            <VideoTile stream={remoteStream} label="Stranger" className="h-full min-h-0 rounded-[1.6rem] sm:rounded-[2rem]" />
+            <VideoTile stream={localStream} label="You" muted local className="h-full min-h-0 rounded-[1.6rem] sm:rounded-[2rem]" />
           </div>
           <div className="absolute inset-x-3 bottom-4 z-30 flex justify-center sm:bottom-6">
             <MediaControls compact className="w-full max-w-[34rem]" />

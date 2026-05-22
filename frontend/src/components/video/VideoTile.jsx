@@ -93,7 +93,7 @@ export default function VideoTile({ stream, label, muted = false, local = false,
           muted={muted || audioUnlockNeeded}
           controls={false}
           preload="auto"
-          className={cn("h-full w-full bg-[#eef1f7]", fit === "contain" ? "object-contain" : "object-cover")}
+          className={cn("h-full w-full bg-[#eef1f7] object-center", fit === "contain" ? "object-contain" : "object-cover")}
         />
       ) : (
         <div className="relative flex h-full min-h-full flex-col items-center justify-center overflow-hidden bg-[#eef1f7] text-center text-[#62626c]">

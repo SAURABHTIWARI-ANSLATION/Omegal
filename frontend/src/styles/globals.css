@@ -119,17 +119,11 @@ button:disabled {
   padding-bottom: max(var(--safe-bottom-padding, 0.625rem), env(safe-area-inset-bottom));
 }
 
-.facetime-room .video-stage-panel {
-  grid-area: 1 / 1;
-}
-
 .chat-facetime-panel {
-  position: absolute;
-  top: 1rem;
-  right: 1rem;
-  bottom: 1rem;
+  position: relative;
   z-index: 35;
-  width: min(24rem, calc(100vw - 2rem));
+  width: auto;
+  height: 100%;
   animation: chat-panel-in 700ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
@@ -482,12 +476,24 @@ button:disabled {
   }
 
   .chat-facetime-panel {
+    position: absolute;
     top: auto;
     right: 0.75rem;
     bottom: 5.7rem;
     left: 0.75rem;
     width: auto;
     max-height: 36dvh;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .chat-facetime-panel {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    bottom: 1rem;
+    width: min(23rem, calc(100vw - 2rem));
+    height: auto;
   }
 }
 

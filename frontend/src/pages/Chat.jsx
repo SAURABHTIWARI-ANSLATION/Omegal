@@ -143,13 +143,13 @@ export default function Chat() {
           className={cn(
             "relative z-10 grid min-h-0 flex-1",
             isVideo
-              ? "h-full"
+              ? "h-full gap-2 p-2 sm:gap-3 sm:p-3 lg:grid-cols-[minmax(0,1fr)_minmax(21rem,24rem)] lg:p-4"
               : "gap-3 grid-rows-[minmax(0,1fr)] lg:grid-cols-[minmax(0,1fr)_minmax(22rem,0.4fr)]"
           )}
         >
           {isVideo ? (
             <>
-              <VideoStage />
+              <VideoStage className="rounded-[1.75rem] border border-white/80 shadow-[0_18px_48px_rgba(17,17,21,0.10)] lg:rounded-[2rem]" />
               <ChatSidebar compact className="chat-facetime-panel" />
             </>
           ) : (
