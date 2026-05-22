@@ -202,7 +202,7 @@ const createMatchPayload = (room, partnerUser, { reconnect = false } = {}) => ({
 });
 
 const isDesignatedOfferer = (socketId, partnerId) => (
-    Boolean(socketId && partnerId && socketId.localeCompare(partnerId) > 0)
+    Boolean(socketId && partnerId && socketId > partnerId)
 );
 
 const emitMatchedPair = (io, room, user1, user2, options = {}) => {
