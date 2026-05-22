@@ -39,9 +39,17 @@ export default function ChatSidebar({ compact = false, expanded = false, classNa
             <p className={cn("truncate text-xs text-[#62626c]", compact && "max-sm:hidden")}>{messages.length} messages in this room</p>
           </div>
         </div>
-        <Badge variant={canChat ? "success" : partnerDisconnected ? "warning" : "default"} className={cn(compact && "px-2 py-0.5 text-[11px]")}>
-          {canChat ? "Connected" : partnerDisconnected ? "Ended" : "Waiting"}
-        </Badge>
+        <div className="flex shrink-0 items-center gap-2">
+          <Badge variant={canChat ? "success" : partnerDisconnected ? "warning" : "default"} className={cn(compact && "px-2 py-0.5 text-[11px]")}>
+            {canChat ? "Connected" : partnerDisconnected ? "Ended" : "Waiting"}
+          </Badge>
+          {!compact && canChat ? (
+            <Button type="button" variant="subtle" size="sm" className="h-8 px-3 text-xs shadow-none" onClick={nextPartner} disabled={nextDisabled}>
+              <SkipForward className="h-3.5 w-3.5" />
+              Next
+            </Button>
+          ) : null}
+        </div>
       </div>
 
       {partnerDisconnected ? (

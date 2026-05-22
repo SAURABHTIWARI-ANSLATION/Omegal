@@ -19,7 +19,7 @@ export default function VideoStage({ className }) {
   const isConnected = rtcConnectionState === "connected" || iceConnectionState === "connected";
   const isImmersive = isCinemaLayout;
   const localPreviewClass = cn(
-    "absolute right-3 z-20 aspect-video w-[min(44vw,16rem)] min-w-[7.5rem] rounded-[1.6rem] border-2 border-white/90 bg-white/[0.70] shadow-[0_4px_20px_rgba(0,0,0,0.12)] backdrop-blur-2xl sm:right-6 sm:w-[min(26vw,19rem)] sm:min-w-[10rem]",
+    "local-video-pip absolute right-3 z-20 aspect-video w-[min(42vw,15rem)] min-w-[7.25rem] rounded-[1.25rem] border-2 border-white/90 bg-white/[0.72] shadow-[0_16px_44px_rgba(24,27,38,0.16)] backdrop-blur-2xl sm:right-5 sm:w-[min(24vw,18rem)] sm:min-w-[10rem]",
     isFullscreen
       ? "bottom-[calc(5.75rem+env(safe-area-inset-bottom))] sm:bottom-[calc(6.25rem+env(safe-area-inset-bottom))]"
       : "bottom-[calc(5.25rem+env(safe-area-inset-bottom))] sm:bottom-[calc(5.75rem+env(safe-area-inset-bottom))]"
@@ -83,21 +83,21 @@ export default function VideoStage({ className }) {
       </div>
 
       {isImmersive ? (
-        <div className="relative min-h-0 flex-1 overflow-hidden bg-[#eef1f7]">
-          <VideoTile stream={remoteStream} label="Stranger" className="absolute inset-3 h-auto w-auto rounded-[20px] sm:inset-4" />
+        <div className="video-immersive-canvas relative min-h-0 flex-1 overflow-hidden bg-[#eef1f7]">
+          <VideoTile stream={remoteStream} label="Stranger" className="remote-video-fill absolute inset-2 h-auto w-auto rounded-[20px] sm:inset-3" />
           <VideoTile stream={localStream} label="You" muted local className={localPreviewClass} />
-          <div className="pointer-events-none absolute inset-x-3 bottom-4 z-30 flex justify-center sm:bottom-6">
-            <MediaControls compact className="pointer-events-auto w-full max-w-[34rem]" />
+          <div className="pointer-events-none absolute inset-x-2 bottom-3 z-30 flex justify-center sm:inset-x-3 sm:bottom-5">
+            <MediaControls compact className="pointer-events-auto w-full max-w-[31rem]" />
           </div>
         </div>
       ) : (
         <>
-          <div className="video-tile-grid grid min-h-0 flex-1 grid-cols-1 grid-rows-2 gap-2 p-3 pb-24 pt-20 sm:gap-4 sm:p-5 sm:pb-28 sm:pt-28 xl:grid-cols-2 xl:grid-rows-1">
+          <div className="video-tile-grid grid min-h-0 flex-1 grid-cols-1 grid-rows-2 gap-2 p-2 pb-24 pt-20 sm:gap-3 sm:p-4 sm:pb-28 sm:pt-28 xl:grid-cols-2 xl:grid-rows-1">
             <VideoTile stream={remoteStream} label="Stranger" className="h-full min-h-0 rounded-[1.6rem] sm:rounded-[2rem]" />
             <VideoTile stream={localStream} label="You" muted local className="h-full min-h-0 rounded-[1.6rem] sm:rounded-[2rem]" />
           </div>
-          <div className="absolute inset-x-3 bottom-4 z-30 flex justify-center sm:bottom-6">
-            <MediaControls compact className="w-full max-w-[34rem]" />
+          <div className="absolute inset-x-2 bottom-3 z-30 flex justify-center sm:inset-x-3 sm:bottom-5">
+            <MediaControls compact className="w-full max-w-[31rem]" />
           </div>
         </>
       )}

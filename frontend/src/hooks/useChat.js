@@ -50,7 +50,7 @@ export function useChat({ listen = false } = {}) {
     const handleReceiveMessage = (payload = {}) => {
       const state = useAppStore.getState();
       if (payload.roomId && payload.roomId !== state.roomId) return;
-      if (payload.sessionVersion && Number(payload.sessionVersion) !== Number(state.sessionVersion)) return;
+      if (payload.sessionVersion !== undefined && Number(payload.sessionVersion) !== Number(state.sessionVersion)) return;
       const message = normalizeIncomingMessage(payload, state.socketId);
       if (message.sender === "me") {
         state.confirmMessageSent({ clientMessageId: message.clientMessageId, id: message.id });
@@ -66,7 +66,13 @@ export function useChat({ listen = false } = {}) {
     const handlePeerReset = (payload = {}) => {
       const state = useAppStore.getState();
       if (payload.roomId && state.roomId && payload.roomId !== state.roomId) return;
-      if (payload.sessionVersion && state.sessionVersion && Number(payload.sessionVersion) < Number(state.sessionVersion)) return;
+      if (
+        payload.sessionVersion !== undefined &&
+        state.sessionVersion &&
+        Number(payload.sessionVersion) < Number(state.sessionVersion)
+      ) {
+        return;
+      }
       closePeerConnection();
       stopStream(state.remoteStream);
       state.setRemoteStream(null);
@@ -77,7 +83,13 @@ export function useChat({ listen = false } = {}) {
     const handlePartnerDisconnected = (payload = {}) => {
       const state = useAppStore.getState();
       if (payload.roomId && state.roomId && payload.roomId !== state.roomId) return;
-      if (payload.sessionVersion && state.sessionVersion && Number(payload.sessionVersion) !== Number(state.sessionVersion)) return;
+      if (
+        payload.sessionVersion !== undefined &&
+        state.sessionVersion &&
+        Number(payload.sessionVersion) !== Number(state.sessionVersion)
+      ) {
+        return;
+      }
       closePeerConnection();
       stopStream(state.remoteStream);
       state.setPartnerDisconnected();

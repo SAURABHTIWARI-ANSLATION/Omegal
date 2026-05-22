@@ -23,15 +23,15 @@ export default function MediaControls({ compact = false, className }) {
   return (
     <div
       className={cn(
-        "safe-bottom flex shrink-0 flex-nowrap items-center justify-center rounded-full border border-black/[0.08] bg-white/[0.82] px-6 py-3 shadow-[0_4px_24px_rgba(0,0,0,0.10)] backdrop-blur-[20px]",
+        "media-controls-bar safe-bottom flex shrink-0 flex-nowrap items-center justify-center rounded-full border border-black/[0.08] bg-white/[0.82] px-6 py-3 shadow-[0_4px_24px_rgba(0,0,0,0.10)] backdrop-blur-[20px]",
         compact ? "gap-2 [--safe-bottom-padding:0.25rem]" : "gap-3 [--safe-bottom-padding:0.5rem]",
         className
       )}
     >
-      <Button type="button" variant={audioEnabled ? "subtle" : "danger"} size="icon" className="h-11 w-11 border-0 shadow-none" disabled={!hasAudio} onClick={toggleAudio} aria-label="Toggle microphone">
+      <Button type="button" variant={audioEnabled ? "subtle" : "danger"} size="icon" className="media-control-button h-11 w-11 border-0 shadow-none" disabled={!hasAudio} onClick={toggleAudio} aria-label="Toggle microphone">
         {audioEnabled ? <Mic className="h-5 w-5" /> : <MicOff className="h-5 w-5" />}
       </Button>
-      <Button type="button" variant={videoEnabled ? "subtle" : "danger"} size="icon" className="h-11 w-11 border-0 shadow-none" disabled={!hasVideo} onClick={toggleVideo} aria-label="Toggle camera">
+      <Button type="button" variant={videoEnabled ? "subtle" : "danger"} size="icon" className="media-control-button h-11 w-11 border-0 shadow-none" disabled={!hasVideo} onClick={toggleVideo} aria-label="Toggle camera">
         {videoEnabled ? <Video className="h-5 w-5" /> : <VideoOff className="h-5 w-5" />}
       </Button>
       <Button

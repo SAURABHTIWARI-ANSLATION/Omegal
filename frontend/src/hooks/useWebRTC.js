@@ -19,6 +19,14 @@ export function useWebRTC({ listen = false } = {}) {
   const activeRoomRef = useRef(null);
   const remoteStreamRef = useRef(null);
   const startingRef = useRef(false);
+  const connectionWatchdogRef = useRef(null);
+  const lastFailureToastRef = useRef(0);
+
+  const clearConnectionWatchdog = useCallback(() => {
+    if (!connectionWatchdogRef.current) return;
+    window.clearTimeout(connectionWatchdogRef.current);
+    connectionWatchdogRef.current = null;
+  }, []);
 
   const resetRemoteStream = useCallback(() => {
     remoteStreamRef.current = null;
@@ -43,9 +51,10 @@ export function useWebRTC({ listen = false } = {}) {
     return `${state.roomId}:${state.partnerId}:${state.sessionVersion || 0}`;
   }, []);
 
-  const emitSignal = useCallback((event, data) => {
+  const emitSignal = useCallback((event, data, sessionKey = null) => {
     const state = useAppStore.getState();
     if (!state.roomId) return;
+    if (sessionKey && getSessionKey(state) !== sessionKey) return;
 
     socketService.emit(event, {
       roomId: state.roomId,
@@ -53,27 +62,80 @@ export function useWebRTC({ listen = false } = {}) {
       sessionVersion: state.sessionVersion,
       ...data,
     });
+  }, [getSessionKey]);
+
+  const addPeerFailureToast = useCallback((title, description) => {
+    const now = Date.now();
+    if (now - lastFailureToastRef.current < 6000) return;
+    lastFailureToastRef.current = now;
+    useAppStore.getState().addToast({ title, description, variant: "error" });
   }, []);
+
+  const scheduleConnectionWatchdog = useCallback(
+    (reason) => {
+      clearConnectionWatchdog();
+      const delayMs = reason === "disconnected" ? 8000 : 0;
+
+      connectionWatchdogRef.current = window.setTimeout(() => {
+        connectionWatchdogRef.current = null;
+        const store = useAppStore.getState();
+        const pc = getActivePeerConnection();
+        if (store.queueStatus !== SESSION_STATUS.MATCHED || !pc) return;
+
+        const connectionState = pc.connectionState;
+        const iceState = pc.iceConnectionState;
+        const failed = connectionState === "failed" || iceState === "failed";
+        const stillDisconnected =
+          reason === "disconnected" &&
+          (connectionState === "disconnected" || iceState === "disconnected" || failed);
+
+        if (!failed && !stillDisconnected) return;
+
+        closePeerConnection();
+        resetRemoteStream();
+        store.setRtcConnectionState(failed ? "failed" : "disconnected");
+        store.setIceConnectionState(failed ? "failed" : "disconnected");
+        addPeerFailureToast(
+          failed ? "Peer connection failed" : "Peer connection unstable",
+          failed ? "Use Next to try a fresh room." : "The peer connection did not recover. Use Next to continue."
+        );
+      }, delayMs);
+    },
+    [addPeerFailureToast, clearConnectionWatchdog, resetRemoteStream]
+  );
 
   const createConnection = useCallback(async () => {
     const existing = getActivePeerConnection();
-    if (existing && existing.signalingState !== "closed") return existing;
+    if (
+      existing &&
+      existing.signalingState !== "closed" &&
+      existing.connectionState !== "closed" &&
+      existing.connectionState !== "failed"
+    ) {
+      return existing;
+    }
+
+    const sessionKey = getSessionKey(useAppStore.getState());
 
     const pc = createManagedPeerConnection({
-      onIceCandidate: (candidate) => emitSignal(EVENTS.SEND_ICE_CANDIDATE, { candidate }),
+      onIceCandidate: (candidate) => emitSignal(EVENTS.SEND_ICE_CANDIDATE, { candidate }, sessionKey),
       onTrack: publishRemoteTrack,
       onConnectionStateChange: (state) => {
         const store = useAppStore.getState();
         store.setRtcConnectionState(state);
+        if (state === "connected") clearConnectionWatchdog();
+        if (state === "disconnected") scheduleConnectionWatchdog("disconnected");
         if (state === "failed") {
-          store.addToast({ title: "Peer connection failed", description: "Use Next to try a fresh room.", variant: "error" });
+          scheduleConnectionWatchdog("failed");
         }
       },
       onIceConnectionStateChange: (state) => {
         const store = useAppStore.getState();
         store.setIceConnectionState(state);
+        if (state === "connected" || state === "completed") clearConnectionWatchdog();
+        if (state === "disconnected") scheduleConnectionWatchdog("disconnected");
         if (state === "failed") {
-          store.addToast({ title: "ICE connection failed", description: "Network traversal failed for this peer.", variant: "error" });
+          scheduleConnectionWatchdog("failed");
         }
       },
     });
@@ -90,7 +152,7 @@ export function useWebRTC({ listen = false } = {}) {
     addLocalTracks(pc, stream);
     useAppStore.getState().setRtcConnectionState("connecting");
     return pc;
-  }, [emitSignal, publishRemoteTrack]);
+  }, [clearConnectionWatchdog, emitSignal, getSessionKey, publishRemoteTrack, scheduleConnectionWatchdog]);
 
   const startSession = useCallback(async () => {
     const state = useAppStore.getState();
@@ -100,14 +162,18 @@ export function useWebRTC({ listen = false } = {}) {
 
     startingRef.current = true;
     activeRoomRef.current = sessionKey;
+    clearConnectionWatchdog();
     closePeerConnection();
     resetRemoteStream();
 
     try {
       const pc = await createConnection();
-      if (determineOfferer(state.socketId, state.partnerId)) {
+      const latestState = useAppStore.getState();
+      if (getSessionKey(latestState) !== sessionKey) return;
+
+      if (determineOfferer(latestState.socketId, latestState.partnerId)) {
         const offer = await createOffer(pc);
-        emitSignal(EVENTS.SEND_OFFER, { offer });
+        emitSignal(EVENTS.SEND_OFFER, { offer }, sessionKey);
       }
     } catch (error) {
       const message = getMediaErrorMessage(error);
@@ -120,7 +186,7 @@ export function useWebRTC({ listen = false } = {}) {
     } finally {
       startingRef.current = false;
     }
-  }, [createConnection, emitSignal, getSessionKey, resetRemoteStream]);
+  }, [clearConnectionWatchdog, createConnection, emitSignal, getSessionKey, resetRemoteStream]);
 
   const toggleAudio = useCallback(() => {
     const state = useAppStore.getState();
@@ -163,6 +229,7 @@ export function useWebRTC({ listen = false } = {}) {
 
       if (state.queueStatus !== SESSION_STATUS.MATCHED && previousState.queueStatus === SESSION_STATUS.MATCHED) {
         activeRoomRef.current = null;
+        clearConnectionWatchdog();
         resetRemoteStream();
         closePeerConnection();
       }
@@ -170,8 +237,11 @@ export function useWebRTC({ listen = false } = {}) {
 
     startSession();
 
-    return () => unsubscribe();
-  }, [listen, resetRemoteStream, startSession]);
+    return () => {
+      clearConnectionWatchdog();
+      unsubscribe();
+    };
+  }, [clearConnectionWatchdog, listen, resetRemoteStream, startSession]);
 
   useEffect(() => {
     if (!listen) return undefined;
@@ -182,7 +252,7 @@ export function useWebRTC({ listen = false } = {}) {
       const state = useAppStore.getState();
       if (state.chatMode !== CHAT_MODES.VIDEO || state.queueStatus !== SESSION_STATUS.MATCHED) return false;
       if (payload.roomId && payload.roomId !== state.roomId) return false;
-      if (payload.sessionVersion && Number(payload.sessionVersion) !== Number(state.sessionVersion)) return false;
+      if (payload.sessionVersion !== undefined && Number(payload.sessionVersion) !== Number(state.sessionVersion)) return false;
       if (payload.senderId && payload.senderId !== state.partnerId) return false;
       return true;
     };
@@ -190,15 +260,19 @@ export function useWebRTC({ listen = false } = {}) {
     const handleReceiveOffer = async (payload = {}) => {
       const state = useAppStore.getState();
       if (!isCurrentSignal(payload)) return;
+      if (determineOfferer(state.socketId, state.partnerId)) return;
 
       const offer = getSignalDescription(payload, "offer");
       if (!offer) return;
 
       try {
         const pc = await createConnection();
-        activeRoomRef.current = getSessionKey(state) || activeRoomRef.current;
+        if (!isCurrentSignal(payload)) return;
+
+        const currentSessionKey = getSessionKey(useAppStore.getState());
+        activeRoomRef.current = currentSessionKey || activeRoomRef.current;
         const answer = await createAnswerForOffer(pc, offer);
-        emitSignal(EVENTS.SEND_ANSWER, { answer });
+        emitSignal(EVENTS.SEND_ANSWER, { answer }, currentSessionKey);
       } catch (error) {
         const message = error.message || "Unable to handle WebRTC offer.";
         useAppStore.getState().addToast({ title: "Offer failed", description: message, variant: "error" });
@@ -207,6 +281,9 @@ export function useWebRTC({ listen = false } = {}) {
 
     const handleReceiveAnswer = async (payload = {}) => {
       if (!isCurrentSignal(payload)) return;
+      const state = useAppStore.getState();
+      if (!determineOfferer(state.socketId, state.partnerId)) return;
+
       const answer = getSignalDescription(payload, "answer");
       if (!answer) return;
 
@@ -237,10 +314,11 @@ export function useWebRTC({ listen = false } = {}) {
       socket.off(EVENTS.RECEIVE_OFFER, handleReceiveOffer);
       socket.off(EVENTS.RECEIVE_ANSWER, handleReceiveAnswer);
       socket.off(EVENTS.RECEIVE_ICE_CANDIDATE, handleReceiveIce);
+      clearConnectionWatchdog();
       closePeerConnection();
       resetRemoteStream();
     };
-  }, [listen, createConnection, emitSignal, getSessionKey, resetRemoteStream]);
+  }, [clearConnectionWatchdog, listen, createConnection, emitSignal, getSessionKey, resetRemoteStream]);
 
   return { toggleAudio, toggleVideo, stopLocalMedia };
 }

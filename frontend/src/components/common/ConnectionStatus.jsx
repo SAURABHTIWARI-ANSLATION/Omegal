@@ -16,7 +16,7 @@ export default function ConnectionStatus({ compact = false }) {
       {isConnected ? <Wifi className="h-3.5 w-3.5" /> : <WifiOff className="h-3.5 w-3.5" />}
       <span className="hidden sm:inline">{label}</span>
       <span className="sm:hidden">{isConnected ? "Online" : socketStatus === SOCKET_STATUS.CONNECTING ? "Connecting" : "Offline"}</span>
-      {!compact && socketId ? <span className="hidden text-[#6e6e73] sm:inline">{socketId.slice(0, 6)}</span> : null}
+      {!compact && socketId ? <span className="hidden text-[#6e6e73] lg:inline">{socketId.slice(0, 6)}</span> : null}
     </Badge>
   );
 }

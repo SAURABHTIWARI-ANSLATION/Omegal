@@ -135,27 +135,27 @@ export default function Chat() {
         exit={{ opacity: 0, y: -16 }}
         transition={{ duration: 0.3 }}
         className={cn(
-          "chat-glow chat-room-main relative mt-[56px] h-[calc(100dvh-56px)] overflow-hidden bg-[#f7f5ef] text-[#111115]",
-          isVideo ? "facetime-room" : "mx-auto flex max-w-[92rem] flex-col px-3 py-3 sm:px-5"
+          "chat-room-main chat-glow relative h-[100dvh] overflow-hidden pt-[56px] text-[#111115]",
+          isVideo ? "chat-room-main-video" : "chat-room-main-text"
         )}
       >
         <div
           className={cn(
-            "relative z-10 grid min-h-0 flex-1",
+            "chat-room-shell relative z-10 grid min-h-0",
             isVideo
-              ? "h-full gap-2 p-2 sm:gap-3 sm:p-3 lg:grid-cols-[minmax(0,1fr)_minmax(21rem,24rem)] lg:p-4"
-              : "gap-3 grid-rows-[minmax(0,1fr)] lg:grid-cols-[minmax(0,1fr)_minmax(22rem,0.4fr)]"
+              ? "chat-room-shell-video"
+              : "chat-room-shell-text mx-auto w-full max-w-[92rem]"
           )}
         >
           {isVideo ? (
             <>
-              <VideoStage className="rounded-[1.75rem] border border-white/80 shadow-[0_18px_48px_rgba(17,17,21,0.10)] lg:rounded-[2rem]" />
+              <VideoStage className="chat-video-stage-shell" />
               <ChatSidebar compact className="chat-facetime-panel" />
             </>
           ) : (
             <>
               <TextRoomPanel />
-              <ChatSidebar expanded className="min-h-0" />
+              <ChatSidebar className="min-h-0" />
             </>
           )}
         </div>

@@ -1,7 +1,9 @@
 import { useEffect } from "react";
 import { EVENTS, SESSION_STATUS, SOCKET_STATUS } from "../utils/constants.js";
 import { socketService } from "../services/socket.js";
+import { closePeerConnection } from "../services/webrtc.js";
 import { useAppStore } from "../store/appStore.js";
+import { stopStream } from "../utils/helpers.js";
 
 export function useSocket() {
   useEffect(() => {
@@ -18,6 +20,20 @@ export function useSocket() {
 
     const handleDisconnect = (reason) => {
       const state = useAppStore.getState();
+      const shouldResetRoom =
+        state.queueStatus === SESSION_STATUS.MATCHED || state.queueStatus === SESSION_STATUS.PARTNER_DISCONNECTED;
+
+      if (shouldResetRoom) {
+        const chatMode = state.chatMode;
+        closePeerConnection();
+        stopStream(state.remoteStream);
+        state.resetSession();
+        const nextState = useAppStore.getState();
+        nextState.setChatMode(chatMode);
+        nextState.setRtcConnectionState("closed");
+        nextState.setIceConnectionState("closed");
+      }
+
       state.setSocketStatus(SOCKET_STATUS.DISCONNECTED, reason);
       state.addToast({
         title: "Connection lost",
