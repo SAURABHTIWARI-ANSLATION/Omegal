@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Camera, Volume2 } from "lucide-react";
 import { cn } from "../../utils/helpers.js";
-import waitingMatch from "../../assets/illustrations/waiting_match.svg";
+import chatUiStudio from "../../assets/studio/chat-ui-studio.jpg";
 
 export default function VideoTile({ stream, label, muted = false, local = false, fit = "cover", className }) {
   const videoRef = useRef(null);
@@ -81,7 +81,7 @@ export default function VideoTile({ stream, label, muted = false, local = false,
 
   return (
     <div
-      className={cn("group relative isolate min-h-0 overflow-hidden rounded-[1.6rem] border border-white/90 bg-[#e8e8ed] shadow-[0_4px_20px_rgba(0,0,0,0.08)] backdrop-blur-2xl", className)}
+      className={cn("group relative isolate min-h-0 overflow-hidden rounded-[1.6rem] border border-white/90 bg-[#eef1f7] shadow-[0_4px_20px_rgba(0,0,0,0.08)] backdrop-blur-2xl", className)}
       onClick={shouldShowPlaybackPrompt ? unlockPlayback : undefined}
     >
       {stream ? (
@@ -93,17 +93,20 @@ export default function VideoTile({ stream, label, muted = false, local = false,
           muted={muted || audioUnlockNeeded}
           controls={false}
           preload="auto"
-          className={cn("h-full w-full bg-[#e8e8ed]", fit === "contain" ? "object-contain" : "object-cover")}
+          className={cn("h-full w-full bg-[#eef1f7]", fit === "contain" ? "object-contain" : "object-cover")}
         />
       ) : (
-        <div className="relative flex h-full min-h-full flex-col items-center justify-center overflow-hidden bg-[#e8e8ed] text-center text-[#6e6e73]">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_42%,rgba(0,113,227,0.10),transparent_30%),radial-gradient(circle_at_68%_62%,rgba(52,199,89,0.08),transparent_34%)]" />
+        <div className="relative flex h-full min-h-full flex-col items-center justify-center overflow-hidden bg-[#eef1f7] text-center text-[#62626c]">
+          <img src={chatUiStudio} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover opacity-45 blur-[1px]" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_42%,rgba(0,113,227,0.18),transparent_30%),radial-gradient(circle_at_68%_62%,rgba(255,55,95,0.10),transparent_34%),linear-gradient(180deg,rgba(255,255,255,0.50),rgba(255,255,255,0.82))]" />
           {local ? (
             <span className="relative flex h-14 w-14 items-center justify-center rounded-2xl border border-white/90 bg-white/[0.72] shadow-[0_8px_32px_rgba(0,113,227,0.10)] backdrop-blur-2xl">
               <Camera className="h-7 w-7" />
             </span>
           ) : (
-            <img src={waitingMatch} alt="" aria-hidden="true" className="relative w-[min(42%,18rem)] max-w-xs" />
+            <span className="relative flex h-20 w-20 items-center justify-center rounded-[1.75rem] border border-white/90 bg-white/78 shadow-[0_18px_45px_rgba(0,113,227,0.18)] backdrop-blur-2xl">
+              <Camera className="h-9 w-9 text-[#0071e3]" />
+            </span>
           )}
           <p className="relative mt-4 px-4 text-sm">{local ? "Camera preview unavailable" : "Waiting for remote video"}</p>
         </div>

@@ -11,6 +11,7 @@ import { useQueue } from "../hooks/useQueue.js";
 import { useAppStore } from "../store/appStore.js";
 import { CHAT_MODES, SESSION_STATUS } from "../utils/constants.js";
 import { cn } from "../utils/helpers.js";
+import chatUiStudio from "../assets/studio/chat-ui-studio.jpg";
 
 function IdleChat() {
   const navigate = useNavigate();
@@ -22,25 +23,36 @@ function IdleChat() {
   };
 
   return (
-    <section className="chat-glow relative mx-auto flex min-h-screen max-w-5xl items-center px-4 pb-8 pt-24 sm:px-6 lg:px-8">
-      <div className="liquid-panel relative w-full overflow-hidden rounded-[2rem] p-6 sm:p-10">
-        <div className="relative">
+    <section className="chat-glow relative mx-auto flex min-h-screen max-w-6xl items-center px-4 pb-8 pt-24 sm:px-6 lg:px-8">
+      <div className="studio-card relative grid w-full overflow-hidden p-5 sm:p-7 lg:grid-cols-[0.88fr_1.12fr] lg:p-8">
+        <div className="relative z-10 flex flex-col justify-center p-2 sm:p-4">
           <Badge variant="info">
             <Sparkles className="h-3.5 w-3.5" />
             No active room
           </Badge>
-          <h1 className="mt-6 text-4xl font-semibold leading-[0.95] tracking-[-0.04em] text-[#1d1d1f] sm:text-6xl">Choose a room mode.</h1>
-          <p className="mt-5 max-w-2xl text-base leading-7 text-[#6e6e73] sm:text-lg">Your browser will join the backend queue and wait for a matching socket.</p>
+          <h1 className="mt-6 text-4xl font-semibold leading-[0.9] tracking-[-0.055em] text-[#111115] sm:text-6xl">Choose a room mode.</h1>
+          <p className="mt-5 max-w-2xl text-base leading-7 text-[#62626c] sm:text-lg">Your browser will join the backend queue and wait for a matching socket.</p>
+          <div className="relative mt-8 grid gap-3 sm:grid-cols-2">
+            <Button size="lg" type="button" onClick={() => begin(CHAT_MODES.VIDEO)}>
+              <Video className="h-5 w-5" />
+              Start video
+            </Button>
+            <Button size="lg" type="button" variant="secondary" onClick={() => begin(CHAT_MODES.TEXT)}>
+              <MessageSquareText className="h-5 w-5" />
+              Start text
+            </Button>
+          </div>
         </div>
-        <div className="relative mt-8 grid gap-3 sm:grid-cols-2">
-          <Button size="lg" type="button" onClick={() => begin(CHAT_MODES.VIDEO)}>
-            <Video className="h-5 w-5" />
-            Start video
-          </Button>
-          <Button size="lg" type="button" variant="secondary" onClick={() => begin(CHAT_MODES.TEXT)}>
-            <MessageSquareText className="h-5 w-5" />
-            Start text
-          </Button>
+        <div className="relative mt-6 min-h-[22rem] overflow-hidden rounded-[2rem] bg-[#eef4ff] lg:mt-0">
+          <img src={chatUiStudio} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover" />
+          <div className="absolute inset-0 bg-gradient-to-t from-white/75 via-white/0 to-white/20" />
+          <div className="absolute bottom-4 left-4 right-4 grid gap-2 sm:grid-cols-3">
+            {["Private room", "Live queue", "Next ready"].map((label) => (
+              <span key={label} className="rounded-full border border-white/80 bg-white/75 px-3 py-2 text-center text-xs font-semibold text-[#111115] shadow-sm backdrop-blur-xl">
+                {label}
+              </span>
+            ))}
+          </div>
         </div>
       </div>
     </section>
@@ -123,7 +135,7 @@ export default function Chat() {
         exit={{ opacity: 0, y: -16 }}
         transition={{ duration: 0.3 }}
         className={cn(
-          "chat-glow chat-room-main relative mt-[52px] h-[calc(100dvh-52px)] overflow-hidden bg-[#f5f5f7] text-[#1d1d1f]",
+          "chat-glow chat-room-main relative mt-[56px] h-[calc(100dvh-56px)] overflow-hidden bg-[#f7f5ef] text-[#111115]",
           isVideo ? "facetime-room" : "mx-auto flex max-w-[92rem] flex-col px-3 py-3 sm:px-5"
         )}
       >
