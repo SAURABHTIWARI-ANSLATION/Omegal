@@ -18,34 +18,34 @@ export default function ChatSidebar({ compact = false, expanded = false, classNa
   const nextDisabled = isSwitchingPartner || queueStatus === SESSION_STATUS.SEARCHING;
 
   return (
-    <aside className={cn("surface-panel flex min-h-0 flex-col overflow-hidden rounded-lg", expanded && "lg:col-span-2", className)}>
+    <aside className={cn("chat-sidebar-panel flex min-h-0 flex-col overflow-hidden rounded-[1.75rem] border-l border-black/[0.08] bg-white/[0.88] shadow-[0_12px_42px_rgba(0,0,0,0.08)] backdrop-blur-2xl", expanded && "lg:col-span-2", className)}>
       <div
         className={cn(
-          "flex shrink-0 items-center justify-between gap-2 border-b border-slate-200 bg-gradient-to-r from-white via-white to-teal-50/70",
-          compact ? "px-2.5 py-2 sm:px-3 sm:py-2.5" : "px-3 py-2.5 sm:px-5 sm:py-3"
+          "chat-sidebar-header flex shrink-0 items-center justify-between gap-2 border-b border-black/[0.08] bg-white/[0.70]",
+          compact ? "px-2 py-1.5 sm:px-3 sm:py-2.5" : "px-3 py-2.5 sm:px-5 sm:py-3"
         )}
       >
         <div className={cn("flex min-w-0 items-center", compact ? "gap-2" : "gap-3")}>
           <span
             className={cn(
-              "flex shrink-0 items-center justify-center rounded-lg bg-slate-950 text-white shadow-[0_10px_28px_rgba(15,23,42,0.18)]",
-              compact ? "h-9 w-9" : "h-10 w-10"
+              "liquid-icon flex shrink-0 items-center justify-center rounded-2xl text-[#0071e3]",
+              compact ? "h-8 w-8 sm:h-9 sm:w-9" : "h-10 w-10"
             )}
           >
             <MessageCircle className={cn(compact ? "h-4 w-4" : "h-5 w-5")} />
           </span>
           <div className="min-w-0">
-            <h2 className="text-sm font-bold text-slate-950">Room chat</h2>
-            <p className={cn("truncate text-xs text-slate-500", compact && "max-sm:hidden")}>{messages.length} messages in this room</p>
+            <h2 className="text-sm font-semibold leading-tight tracking-[-0.02em] text-[#1d1d1f]">Room chat</h2>
+            <p className={cn("truncate text-xs text-[#6e6e73]", compact && "max-sm:hidden")}>{messages.length} messages in this room</p>
           </div>
         </div>
-        <Badge variant={canChat ? "success" : partnerDisconnected ? "warning" : "default"} className={cn(compact && "px-2 py-0.5")}>
+        <Badge variant={canChat ? "success" : partnerDisconnected ? "warning" : "default"} className={cn(compact && "px-2 py-0.5 text-[11px]")}>
           {canChat ? "Connected" : partnerDisconnected ? "Ended" : "Waiting"}
         </Badge>
       </div>
 
       {partnerDisconnected ? (
-        <div className={cn("border-b border-amber-200 bg-amber-50 text-sm text-amber-800", compact ? "px-3 py-2" : "px-4 py-2.5")}>
+        <div className={cn("border-b border-[#ff9f0a]/20 bg-[#ff9f0a]/10 text-sm text-[#8a5600]", compact ? "px-3 py-2" : "px-4 py-2.5")}>
           Partner disconnected. You can start a fresh room.
         </div>
       ) : null}
@@ -53,7 +53,7 @@ export default function ChatSidebar({ compact = false, expanded = false, classNa
       <MessageList compact={compact} />
 
       {partnerDisconnected ? (
-        <div className={cn("border-t border-slate-200 bg-slate-50/80", compact ? "p-2.5 sm:p-3" : "p-3 sm:p-4")}>
+        <div className={cn("border-t border-black/[0.08] bg-white/[0.70]", compact ? "p-2.5 sm:p-3" : "p-3 sm:p-4")}>
           <Button className="w-full" type="button" onClick={nextPartner} disabled={nextDisabled}>
             <SkipForward className="h-4 w-4" />
             {nextDisabled ? "Searching..." : "Next partner"}

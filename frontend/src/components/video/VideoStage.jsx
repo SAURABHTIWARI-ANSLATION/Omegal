@@ -9,7 +9,7 @@ import { cn } from "../../utils/helpers.js";
 
 export default function VideoStage() {
   const stageRef = useRef(null);
-  const [isCinemaLayout, setIsCinemaLayout] = useState(false);
+  const [isCinemaLayout, setIsCinemaLayout] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const localStream = useAppStore((state) => state.localStream);
   const remoteStream = useAppStore((state) => state.remoteStream);
@@ -19,7 +19,7 @@ export default function VideoStage() {
   const isConnected = rtcConnectionState === "connected" || iceConnectionState === "connected";
   const isImmersive = isCinemaLayout;
   const localPreviewClass = cn(
-    "absolute right-3 z-20 aspect-video w-[min(42vw,18rem)] min-w-[10rem] border-teal-300/50 bg-slate-950 shadow-[0_20px_70px_rgba(0,0,0,0.5)] sm:right-4 sm:w-[min(30vw,21rem)]",
+    "absolute right-3 z-20 aspect-video w-[min(42vw,17rem)] min-w-[7.5rem] rounded-[1.6rem] border-2 border-white/90 bg-white/[0.70] shadow-[0_4px_20px_rgba(0,0,0,0.12)] backdrop-blur-2xl sm:right-6 sm:w-[min(28vw,21rem)] sm:min-w-[10rem]",
     isFullscreen
       ? "bottom-[calc(5.75rem+env(safe-area-inset-bottom))] sm:bottom-[calc(6.25rem+env(safe-area-inset-bottom))]"
       : "bottom-[calc(5.25rem+env(safe-area-inset-bottom))] sm:bottom-[calc(5.75rem+env(safe-area-inset-bottom))]"
@@ -52,24 +52,24 @@ export default function VideoStage() {
     <section
       ref={stageRef}
       className={cn(
-        "media-panel relative flex min-h-0 flex-1 flex-col gap-2 overflow-hidden rounded-lg p-2 text-white sm:gap-3 sm:p-3 lg:p-4",
-        isFullscreen && "h-screen w-screen rounded-none border-0 bg-slate-950 p-2 sm:p-4"
+        "video-stage-panel relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-none border-0 bg-[#f7f5ef] text-[#111115]",
+        isFullscreen && "h-screen w-screen"
       )}
     >
-      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-white/10 pb-2 sm:gap-3 sm:pb-3">
+      <div className="video-stage-header pointer-events-none absolute inset-x-3 top-3 z-40 flex shrink-0 items-center justify-between gap-2 sm:inset-x-5 sm:top-5">
         <div className="min-w-0">
-          <p className="hidden items-center gap-2 text-xs font-semibold text-teal-200 sm:flex sm:text-sm">
+          <p className="liquid-pill hidden items-center gap-2 px-3 py-1.5 text-xs font-semibold text-[#6e6e73] sm:flex">
             <Sparkles className="h-3.5 w-3.5" />
             Private room
           </p>
-          <h2 className="truncate text-base font-bold sm:mt-1 sm:text-2xl">Video conversation</h2>
+          <h2 className="video-stage-title mt-2 hidden truncate text-2xl font-semibold tracking-[-0.04em] text-[#111115] sm:block">Video conversation</h2>
         </div>
-        <div className="flex min-w-0 shrink-0 items-center justify-end gap-1.5 sm:gap-2">
+        <div className="pointer-events-auto flex min-w-0 shrink-0 items-center justify-end gap-1.5 sm:gap-2">
           <Badge variant="dark" className="hidden max-w-[10rem] sm:inline-flex lg:max-w-full">
-            {isConnected ? <SignalHigh className="h-3.5 w-3.5 text-teal-300" /> : <Radio className="h-3.5 w-3.5 text-indigo-300" />}
+            {isConnected ? <SignalHigh className="h-3.5 w-3.5 text-[#34c759]" /> : <Radio className="h-3.5 w-3.5 text-[#0071e3]" />}
             <span className="truncate">WebRTC {rtcConnectionState}</span>
           </Badge>
-          <span className={cn("h-2.5 w-2.5 rounded-full sm:hidden", isConnected ? "bg-teal-300 shadow-[0_0_14px_rgba(94,234,212,0.9)]" : "bg-indigo-300")} aria-label={`WebRTC ${rtcConnectionState}`} />
+          <span className={cn("h-2.5 w-2.5 rounded-full sm:hidden", isConnected ? "bg-[#34c759]" : "bg-[#0071e3]")} aria-label={`WebRTC ${rtcConnectionState}`} />
           <Button type="button" variant="subtle" size="sm" className="h-9 px-2.5 sm:h-9 sm:px-3" onClick={() => setIsCinemaLayout((value) => !value)}>
             {isCinemaLayout ? <Columns2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
             <span className="hidden sm:inline">{isCinemaLayout ? "Split" : "Maximize"}</span>
@@ -82,20 +82,22 @@ export default function VideoStage() {
       </div>
 
       {isImmersive ? (
-        <div className="relative min-h-0 flex-1 overflow-hidden rounded-lg border border-white/10 bg-slate-950">
-          <VideoTile stream={remoteStream} label="Stranger" className="absolute inset-0 h-full w-full rounded-none border-0" />
+        <div className="relative min-h-0 flex-1 overflow-hidden bg-[#eef1f7]">
+          <VideoTile stream={remoteStream} label="Stranger" className="absolute inset-3 h-auto w-auto rounded-[20px] sm:inset-4" />
           <VideoTile stream={localStream} label="You" muted local fit="contain" className={localPreviewClass} />
-          <div className="pointer-events-none absolute inset-x-3 bottom-3 z-30 flex justify-center sm:bottom-4">
-            <MediaControls compact className="pointer-events-auto w-full max-w-[38rem] bg-slate-900/88 px-3 shadow-[0_18px_60px_rgba(0,0,0,0.38)] ring-1 ring-white/10" />
+          <div className="pointer-events-none absolute inset-x-3 bottom-4 z-30 flex justify-center sm:bottom-6">
+            <MediaControls compact className="pointer-events-auto w-full max-w-[34rem]" />
           </div>
         </div>
       ) : (
         <>
-          <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-2 gap-2 sm:gap-3 md:grid-cols-2 md:grid-rows-1">
-            <VideoTile stream={remoteStream} label="Stranger" fit="contain" className="h-full min-h-0" />
-            <VideoTile stream={localStream} label="You" muted local fit="contain" className="h-full min-h-0" />
+          <div className="video-tile-grid grid min-h-0 flex-1 grid-cols-2 grid-rows-1 gap-2 p-3 pt-24 sm:gap-4 sm:p-5 sm:pt-32">
+            <VideoTile stream={remoteStream} label="Stranger" fit="contain" className="h-full min-h-0 rounded-[2rem]" />
+            <VideoTile stream={localStream} label="You" muted local fit="contain" className="h-full min-h-0 rounded-[2rem]" />
           </div>
-          <MediaControls compact />
+          <div className="absolute inset-x-3 bottom-4 z-30 flex justify-center sm:bottom-6">
+            <MediaControls compact className="w-full max-w-[34rem]" />
+          </div>
         </>
       )}
     </section>

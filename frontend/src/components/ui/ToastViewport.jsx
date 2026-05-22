@@ -5,10 +5,10 @@ import { useAppStore } from "../../store/appStore.js";
 import { cn } from "../../utils/helpers.js";
 
 const variantStyles = {
-  default: "border-slate-700 bg-slate-950 text-slate-100",
-  success: "border-teal-700 bg-teal-950 text-teal-50",
-  warning: "border-amber-700 bg-amber-950 text-amber-50",
-  error: "border-rose-700 bg-rose-950 text-rose-50",
+  default: "border-black/[0.08] bg-white/[0.90] text-[#1d1d1f]",
+  success: "border-[#34c759]/20 bg-white/[0.90] text-[#1d1d1f]",
+  warning: "border-[#ff9f0a]/20 bg-white/[0.90] text-[#1d1d1f]",
+  error: "border-[#ff375f]/20 bg-white/[0.90] text-[#1d1d1f]",
 };
 
 const icons = {
@@ -33,15 +33,15 @@ function ToastItem({ toast }) {
       initial={{ opacity: 0, x: 40, scale: 0.96 }}
       animate={{ opacity: 1, x: 0, scale: 1 }}
       exit={{ opacity: 0, x: 40, scale: 0.96 }}
-      className={cn("pointer-events-auto flex w-full max-w-sm gap-3 rounded-lg border p-4 shadow-xl", variantStyles[toast.variant])}
+      className={cn("pointer-events-auto flex w-full max-w-sm gap-3 rounded-3xl border p-4 shadow-[0_12px_40px_rgba(0,0,0,0.12)] backdrop-blur-2xl", variantStyles[toast.variant])}
     >
       <Icon className="mt-0.5 h-5 w-5 shrink-0" />
       <div className="min-w-0 flex-1">
         <p className="text-sm font-semibold">{toast.title}</p>
-        {toast.description ? <p className="mt-1 text-sm text-slate-300">{toast.description}</p> : null}
+        {toast.description ? <p className="mt-1 text-sm text-[#6e6e73]">{toast.description}</p> : null}
       </div>
       <button
-        className="rounded-md p-1 text-slate-300 transition hover:bg-white/10 hover:text-white"
+        className="rounded-full p-1 text-[#6e6e73] transition hover:bg-black/[0.06] hover:text-[#1d1d1f]"
         type="button"
         onClick={() => removeToast(toast.id)}
         aria-label="Dismiss notification"

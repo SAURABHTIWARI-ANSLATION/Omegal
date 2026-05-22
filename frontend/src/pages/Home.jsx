@@ -7,654 +7,356 @@ import {
   ChevronDown,
   Globe2,
   LockKeyhole,
+  MessageCircle,
   MessageSquareText,
   Mic,
   Play,
-  Quote,
-  Radio,
-  Route,
+  Radar,
   ShieldCheck,
   Sparkles,
-  Star,
   Users,
   Video,
   Wifi,
   Zap,
 } from "lucide-react";
 import AppShell from "../components/layout/AppShell.jsx";
-import Button from "../components/ui/Button.jsx";
 import { useQueue } from "../hooks/useQueue.js";
 import { useAppStore } from "../store/appStore.js";
 import { CHAT_MODES, SOCKET_STATUS } from "../utils/constants.js";
+import heroStudio from "../assets/studio/hero-studio.jpg";
+import featuresStudio from "../assets/studio/features-studio.jpg";
+import flowStudio from "../assets/studio/flow-studio.jpg";
+import safetyStudio from "../assets/studio/safety-studio.jpg";
+import chatUiStudio from "../assets/studio/chat-ui-studio.jpg";
 
-const avatars = [
-  { name: "Maya", location: "Berlin", src: "/assets/avatars/maya.svg", tone: "bg-teal-300" },
-  { name: "Akira", location: "Tokyo", src: "/assets/avatars/akira.svg", tone: "bg-indigo-300" },
-  { name: "Noah", location: "Austin", src: "/assets/avatars/noah.svg", tone: "bg-rose-300" },
-  { name: "Zara", location: "Dubai", src: "/assets/avatars/zara.svg", tone: "bg-amber-300" },
-];
+const fadeUp = {
+  hidden: { opacity: 0, y: 34 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.82, ease: [0.16, 1, 0.3, 1] } },
+};
 
-const modes = [
+const stagger = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.08 } },
+};
+
+const features = [
   {
-    mode: CHAT_MODES.VIDEO,
-    label: "Video match",
-    title: "Video room",
-    description: "Camera, microphone, peer media",
     icon: Video,
+    title: "Direct WebRTC media",
+    body: "Video and audio move peer-to-peer after signaling, giving every room a fast live feel.",
+    tint: "from-[#0071e3] to-[#5ac8fa]",
   },
   {
-    mode: CHAT_MODES.TEXT,
-    label: "Text match",
-    title: "Text room",
-    description: "Socket messages, no media prompt",
     icon: MessageSquareText,
-  },
-];
-
-const proofItems = [
-  { value: "Live", label: "real-time room matching" },
-  { value: "1:1", label: "private peer sessions" },
-  { value: "4", label: "safety checks in the room flow" },
-  { value: "0", label: "feed, noise, or timeline clutter" },
-];
-
-const storyPanels = [
-  {
-    eyebrow: "Social discovery",
-    title: "A cinematic first impression for meeting someone new.",
-    body: "Omegal is shaped around a single emotional moment: click, wait, connect. The page now makes that feel premium before the first room starts.",
-    points: ["Fake active users show presence", "Video-call mockups explain the product", "Mode choices stay conversion-ready"],
-    icon: Users,
-    visual: "people",
+    title: "Text-first option",
+    body: "Start lightweight socket chat without camera or microphone pressure.",
+    tint: "from-[#34c759] to-[#9be15d]",
   },
   {
-    eyebrow: "Realtime architecture",
-    title: "Backend-aligned room flow, shown as product storytelling.",
-    body: "Queue, room, and peer states are presented visually so the marketing site matches the actual socket and WebRTC behavior.",
-    points: ["FIFO matchmaking", "Clean rejoin handling", "Direct WebRTC media"],
-    icon: Route,
-    visual: "flow",
+    icon: LockKeyhole,
+    title: "Private room scope",
+    body: "Participant-checked messages, offers, answers, and ICE candidates stay isolated.",
+    tint: "from-[#af52de] to-[#ff9f0a]",
   },
   {
-    eyebrow: "Trust layer",
-    title: "Safety and privacy feel visible, not hidden in a footer.",
-    body: "Participant-scoped messages, offers, answers, and ICE candidates are surfaced as a trust story users can understand quickly.",
-    points: ["Private signaling", "Participant-checked events", "Room events stay scoped"],
+    icon: Globe2,
+    title: "Global discovery",
+    body: "A clean queue pairs active sockets without feed noise or account friction.",
+    tint: "from-[#ff9f0a] to-[#ff375f]",
+  },
+  {
     icon: ShieldCheck,
-    visual: "safety",
+    title: "Safety by default",
+    body: "Visible privacy cues make the room feel calmer before the first hello.",
+    tint: "from-[#ff375f] to-[#af52de]",
+  },
+  {
+    icon: Zap,
+    title: "Fast next partner",
+    body: "Switch partners without a page reload while media renegotiates cleanly.",
+    tint: "from-[#5ac8fa] to-[#0071e3]",
   },
 ];
 
-const flowSteps = [
-  { title: "Choose", body: "Pick a video or text room.", icon: Play },
-  { title: "Queue", body: "Join a clean waiting state.", icon: Users },
-  { title: "Match", body: "Move into a private room.", icon: Radio },
-  { title: "Connect", body: "Talk with direct WebRTC media.", icon: Video },
+const steps = [
+  {
+    number: "01",
+    eyebrow: "Choose signal",
+    title: "Pick video or text without leaving the moment.",
+    body: "The first interaction stays simple: choose a mode, enter the queue, and let the room system prepare a clean match.",
+    points: ["No account wall", "Explicit mode control", "Stable local session"],
+  },
+  {
+    number: "02",
+    eyebrow: "Match privately",
+    title: "Two active sockets enter one scoped room.",
+    body: "Messages and WebRTC signaling are accepted only from matched participants, with stale session events ignored.",
+    points: ["Participant checks", "Session versioning", "Scoped WebRTC events"],
+  },
+  {
+    number: "03",
+    eyebrow: "Move forward",
+    title: "Find the next person without breaking the room.",
+    body: "The requester keeps local media stable, the old peer can rejoin the queue, and the next peer renegotiates cleanly.",
+    points: ["No page refresh", "Clean peer reset", "Smooth next-partner flow"],
+  },
 ];
 
 const reactions = [
-  {
-    quote: "It feels like a calm, premium version of random chat. I understand the room before I click.",
-    person: "Founder tester",
-    role: "Social app builder",
-  },
-  {
-    quote: "The safety story is finally visible. The product feels less anonymous-chaotic and more intentional.",
-    person: "Frontend reviewer",
-    role: "Product engineer",
-  },
-  {
-    quote: "The lobby makes live matching feel real, not like a college demo page.",
-    person: "Early user",
-    role: "Video chat user",
-  },
+  ["Feels private", "The room tells me exactly what is happening."],
+  ["No awkward reset", "Next partner feels instant instead of broken."],
+  ["Actually premium", "It looks like a product, not a demo."],
 ];
 
 const faqs = [
-  {
-    question: "Is Omegal only a landing page?",
-    answer: "No. The front page is conversion-focused, but the CTA buttons still join the live backend queue and route users into the room flow.",
-  },
-  {
-    question: "How does privacy work in the room?",
-    answer: "Room events are scoped to matched participants, with participant-checked messages, offers, answers, and ICE candidates.",
-  },
-  {
-    question: "Can users choose video or text?",
-    answer: "Yes. The landing page keeps both entry points visible: video rooms for WebRTC media and text rooms for socket messages.",
-  },
-  {
-    question: "What happens after matching?",
-    answer: "The app moves users from the queue into a private room where the peer session can start cleanly.",
-  },
+  ["Is this only a landing page?", "No. The CTAs connect to the real socket queue and route users into the live chat experience."],
+  ["Does video go through the backend?", "The backend handles signaling and matchmaking. Browser media is WebRTC peer-to-peer once connected."],
+  ["Can users skip partners?", "Yes. The next-partner flow resets the peer connection and searches again without page refresh."],
+  ["Is the room private?", "Room events are scoped to the matched participants and stale session events are ignored."],
 ];
 
-function StatusPill({ children, className = "" }) {
+const footerColumns = [
+  ["Explore", "Video room", "Text room", "Queue system", "Next partner"],
+  ["Platform", "Private signaling", "WebRTC media", "Socket rooms", "Mobile support"],
+  ["Safety", "Room isolation", "Stale event guards", "Participant checks", "Moderation ready"],
+  ["Company", "Status", "Privacy", "Terms", "Contact"],
+];
+
+function AmbientOrbs() {
   return (
-    <span className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold ${className}`}>
+    <div className="studio-ambient" aria-hidden="true">
+      <span />
+    </div>
+  );
+}
+
+function Eyebrow({ icon: Icon = Sparkles, children, className = "" }) {
+  return (
+    <span className={`studio-eyebrow ${className}`}>
+      <Icon className="h-4 w-4" />
       {children}
     </span>
   );
 }
 
-function SectionHeading({ eyebrow, title, body, align = "left" }) {
+function GradientWord({ children }) {
   return (
-    <div className={align === "center" ? "mx-auto max-w-3xl text-center" : "max-w-3xl"}>
-      <StatusPill className="border-teal-300/25 bg-teal-300/10 text-teal-200">
-        <Sparkles className="h-3.5 w-3.5" />
-        {eyebrow}
-      </StatusPill>
-      <h2 className="mt-5 text-3xl font-bold leading-tight text-white sm:text-5xl">{title}</h2>
-      {body ? <p className="mt-5 text-lg leading-8 text-slate-300">{body}</p> : null}
-    </div>
+    <span className="bg-gradient-to-r from-[#0071e3] via-[#af52de] to-[#ff375f] bg-clip-text text-transparent">
+      {children}
+    </span>
   );
 }
 
-function ModeLauncher({ selectedMode, setSelectedMode, startingMode, begin, compact = false }) {
-  const selected = modes.find((item) => item.mode === selectedMode) || modes[0];
-  const SelectedIcon = selected.icon;
-
+function CTAButton({ children, secondary = false, onClick, disabled, icon: Icon }) {
   return (
-    <div className={compact ? "grid gap-3" : "grid gap-4 rounded-lg border border-white/[0.12] bg-white/[0.08] p-3 shadow-2xl shadow-black/30 backdrop-blur-xl"}>
-      <div className="grid grid-cols-2 gap-2">
-        {modes.map(({ mode, label, icon: Icon }) => {
-          const active = selectedMode === mode;
-          return (
-            <button
-              key={mode}
-              type="button"
-              onClick={() => setSelectedMode(mode)}
-              className={`group flex min-h-12 items-center justify-center gap-2 rounded-lg border px-3 text-sm font-semibold transition ${
-                active
-                  ? "border-teal-300/50 bg-teal-300/15 text-white shadow-[0_0_30px_rgba(20,184,166,0.16)]"
-                  : "border-white/10 bg-white/[0.06] text-slate-300 hover:border-white/[0.22] hover:bg-white/10 hover:text-white"
-              }`}
-            >
-              <Icon className="h-4 w-4 transition group-hover:scale-110" />
-              {label}
-            </button>
-          );
-        })}
-      </div>
-
-      <button
-        type="button"
-        disabled={Boolean(startingMode)}
-        onClick={() => begin(selectedMode)}
-        className="inline-flex h-14 items-center justify-center gap-2 rounded-lg bg-white px-5 text-base font-bold text-slate-950 shadow-[0_0_40px_rgba(94,234,212,0.24)] transition hover:-translate-y-0.5 hover:bg-teal-50 disabled:cursor-not-allowed disabled:opacity-60"
-      >
-        <SelectedIcon className="h-5 w-5" />
-        {startingMode ? "Joining..." : `Start ${selected.label.toLowerCase()}`}
-      </button>
-    </div>
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={secondary ? "studio-cta-secondary disabled:opacity-50" : "studio-cta-primary disabled:opacity-50"}
+    >
+      {Icon ? <Icon className="h-4 w-4" /> : null}
+      {children}
+    </button>
   );
 }
 
-function AvatarCard({ user, className = "", delay = 0 }) {
+function SectionIntro({ eyebrow, title, body, icon, align = "center" }) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.45, delay }}
-      className={`float-soft rounded-lg border border-white/[0.12] bg-white/10 p-3 shadow-2xl shadow-black/30 backdrop-blur-xl ${className}`}
+      variants={fadeUp}
+      initial="hidden"
+      whileInView="show"
+      viewport={{ once: true, margin: "-120px" }}
+      className={align === "left" ? "max-w-3xl" : "mx-auto max-w-4xl text-center"}
     >
-      <div className="flex items-center gap-3">
-        <div className="relative">
-          <img className="h-12 w-12 rounded-lg object-cover" src={user.src} alt={`${user.name} avatar`} />
-          <span className={`absolute -right-1 -top-1 h-3 w-3 rounded-sm border border-slate-950 ${user.tone}`} />
-        </div>
-        <div>
-          <p className="text-sm font-bold text-white">{user.name}</p>
-          <p className="text-xs text-slate-300">{user.location} online</p>
-        </div>
-      </div>
+      <Eyebrow icon={icon}>{eyebrow}</Eyebrow>
+      <h2 className="mt-6 text-4xl font-semibold leading-[0.9] tracking-[-0.055em] text-[#111115] sm:text-6xl lg:text-7xl">
+        {title}
+      </h2>
+      {body ? <p className="mt-6 max-w-2xl text-lg leading-8 text-[#62626c] sm:text-xl">{body}</p> : null}
     </motion.div>
   );
 }
 
-function VideoPane({ label, avatar, active = false }) {
+function StudioImage({ src, alt = "", className = "", loading = "eager", fetchPriority, children }) {
   return (
-    <div className="relative min-h-48 overflow-hidden rounded-lg border border-white/10 bg-slate-950">
-      <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(20,184,166,0.18),transparent_32%),linear-gradient(45deg,rgba(99,102,241,0.22),transparent_56%),linear-gradient(315deg,rgba(244,63,94,0.16),transparent_42%)]" />
-      <div className="absolute inset-0 bg-[repeating-linear-gradient(135deg,rgba(255,255,255,0.06)_0,rgba(255,255,255,0.06)_1px,transparent_1px,transparent_18px)]" />
-      <div className="relative flex min-h-48 flex-col justify-between p-4">
-        <div className="flex items-center justify-between">
-          <span className="rounded-md bg-black/35 px-2.5 py-1 text-xs font-semibold text-white">{label}</span>
-          {active ? <span className="h-2.5 w-2.5 rounded-sm bg-teal-300 shadow-[0_0_18px_rgba(94,234,212,0.85)]" /> : null}
-        </div>
-        <div className="mx-auto flex flex-col items-center">
-          <img className="h-20 w-20 rounded-lg border border-white/[0.12] bg-white/10 object-cover p-1" src={avatar.src} alt={`${avatar.name} video tile`} />
-          <p className="mt-3 text-sm font-semibold text-white">{avatar.name}</p>
-        </div>
-        <div className="grid grid-cols-[1fr_auto] items-center gap-3">
-          <div className="h-2 rounded-md bg-white/10">
-            <div className="h-full w-2/3 rounded-md bg-white/40" />
-          </div>
-          <Wifi className="h-4 w-4 text-teal-200" />
-        </div>
-      </div>
+    <div className={`studio-art-card ${className}`}>
+      <img
+        src={src}
+        alt={alt}
+        aria-hidden={alt ? undefined : "true"}
+        loading={loading}
+        fetchPriority={fetchPriority}
+        className="h-full w-full object-cover"
+      />
+      <div className="studio-art-sheen" aria-hidden="true" />
+      {children}
     </div>
   );
 }
 
-function HeroMockup({ signalLabel }) {
+function HeroVisual({ signalLabel }) {
   return (
-    <div className="relative mx-auto max-w-2xl lg:max-w-none">
-      <img className="pointer-events-none absolute -right-12 -top-16 h-64 w-64 opacity-80" src="/assets/mockups/connection-ring.svg" alt="" />
-      <AvatarCard user={avatars[0]} className="absolute -left-4 top-9 z-20 hidden w-44 lg:block" delay={0.2} />
-      <AvatarCard user={avatars[1]} className="absolute -right-4 bottom-20 z-20 hidden w-44 lg:block" delay={0.3} />
-
-      <motion.div
-        initial={{ opacity: 0, y: 18, scale: 0.98 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: 0.5 }}
-        className="relative overflow-hidden rounded-lg border border-white/[0.14] bg-slate-950/[0.84] p-3 shadow-[0_30px_100px_rgba(0,0,0,0.5)] backdrop-blur-2xl"
+    <motion.div variants={fadeUp} className="relative min-h-[31rem] lg:min-h-[38rem]">
+      <div className="studio-orbit" aria-hidden="true" />
+      <StudioImage
+        src={heroStudio}
+        loading="eager"
+        fetchPriority="high"
+        className="absolute inset-x-0 top-6 mx-auto h-[28rem] max-w-[42rem] rounded-[2.5rem] lg:h-[33rem]"
       >
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_15%_20%,rgba(20,184,166,0.18),transparent_30%),radial-gradient(circle_at_80%_15%,rgba(99,102,241,0.2),transparent_28%),radial-gradient(circle_at_60%_90%,rgba(244,63,94,0.12),transparent_34%)]" />
-        <div className="relative rounded-lg border border-white/10 bg-white/[0.04] p-3">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-3">
-            <div className="flex items-center gap-3">
-              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-white text-slate-950">
-                <Video className="h-4 w-4" />
-              </span>
-              <div>
-                <p className="text-sm font-bold text-white">Omegal live room</p>
-                <p className="text-xs text-slate-400">Matched from the clean queue</p>
-              </div>
-            </div>
-            <StatusPill className="border-teal-300/25 bg-teal-300/10 text-teal-100">
-              <Wifi className="h-3.5 w-3.5" />
-              {signalLabel}
-            </StatusPill>
-          </div>
-
-          <div className="grid gap-3 py-3 md:grid-cols-[1fr_0.74fr]">
-            <VideoPane label="Stranger" avatar={avatars[2]} active />
-            <div className="grid gap-3">
-              <VideoPane label="You" avatar={avatars[3]} />
-              <div className="rounded-lg border border-white/10 bg-white/[0.07] p-4">
-                <div className="flex items-center gap-2 text-sm font-semibold text-white">
-                  <CheckCircle2 className="h-4 w-4 text-teal-300" />
-                  Private room ready
-                </div>
-                <div className="mt-4 grid grid-cols-2 gap-2">
-                  <div className="rounded-lg bg-white/10 p-3">
-                    <Video className="h-4 w-4 text-teal-200" />
-                    <p className="mt-2 text-xs text-slate-300">Camera</p>
-                  </div>
-                  <div className="rounded-lg bg-white/10 p-3">
-                    <Mic className="h-4 w-4 text-indigo-200" />
-                    <p className="mt-2 text-xs text-slate-300">Microphone</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="grid gap-3 border-t border-white/10 pt-3 sm:grid-cols-3">
-            {["Queue", "Room", "Peer"].map((item, index) => (
-              <div key={item} className="rounded-lg border border-white/10 bg-white/[0.07] p-3">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-sm font-semibold text-white">{item}</p>
-                  <span className="text-xs font-bold text-teal-200">0{index + 1}</span>
-                </div>
-              </div>
-            ))}
-          </div>
+        <div className="absolute left-5 top-5 rounded-full border border-white/70 bg-white/70 px-4 py-2 text-xs font-semibold text-[#111115] shadow-[0_18px_45px_rgba(0,0,0,0.12)] backdrop-blur-2xl">
+          Live room preview
         </div>
-      </motion.div>
-
-      <motion.div
-        initial={{ opacity: 0, x: 22 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.45, delay: 0.38 }}
-        className="float-soft absolute -right-2 top-28 hidden max-w-56 rounded-lg border border-white/[0.12] bg-white/[0.12] p-4 shadow-2xl shadow-black/30 backdrop-blur-xl sm:block"
-      >
-        <div className="flex items-center gap-2 text-sm font-bold text-white">
-          <MessageSquareText className="h-4 w-4 text-teal-200" />
-          New match
-        </div>
-        <p className="mt-2 text-sm leading-6 text-slate-200">“Hey, where are you joining from?”</p>
-      </motion.div>
-    </div>
-  );
-}
-
-function ProofStrip() {
-  return (
-    <section className="relative border-y border-white/10 bg-white/[0.04]">
-      <div className="mx-auto grid max-w-7xl gap-3 px-4 py-5 sm:grid-cols-2 sm:px-6 lg:grid-cols-4 lg:px-8">
-        {proofItems.map((item) => (
-          <div key={item.label} className="rounded-lg border border-white/10 bg-white/[0.05] p-4">
-            <p className="text-3xl font-bold text-white">{item.value}</p>
-            <p className="mt-1 text-sm leading-6 text-slate-300">{item.label}</p>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function ProductNetworkBanner() {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 18 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-120px" }}
-      transition={{ duration: 0.45 }}
-      className="mt-10 grid overflow-hidden rounded-lg border border-white/[0.12] bg-white/[0.06] shadow-2xl shadow-black/30 lg:grid-cols-[1fr_0.68fr]"
-    >
-      <div className="p-5 sm:p-7">
-        <StatusPill className="border-white/[0.12] bg-white/[0.08] text-slate-200">
-          <Globe2 className="h-3.5 w-3.5 text-teal-200" />
-          Live interaction map
-        </StatusPill>
-        <h3 className="mt-5 max-w-2xl text-2xl font-bold leading-tight text-white sm:text-4xl">
-          A social product should look connected before anyone clicks.
-        </h3>
-        <p className="mt-4 max-w-2xl leading-8 text-slate-300">
-          The global network visual gives the page a real-time social discovery feel while still matching the queue, room, and peer model behind Omegal.
-        </p>
-      </div>
-      <div className="relative min-h-72 overflow-hidden border-t border-white/[0.12] bg-slate-950/[0.45] lg:border-l lg:border-t-0">
-        <img loading="lazy" className="h-full w-full object-cover" src="/assets/illustrations/global-network.svg" alt="Global live users network illustration" />
-      </div>
-    </motion.div>
-  );
-}
-
-function VisualStory({ panel, index }) {
-  const Icon = panel.icon;
-  const reverse = index % 2 === 1;
-
-  return (
-    <motion.article
-      initial={{ opacity: 0, y: 18 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-120px" }}
-      transition={{ duration: 0.45 }}
-      className={`grid items-center gap-8 lg:grid-cols-2 ${reverse ? "lg:[&>*:first-child]:order-2" : ""}`}
-    >
-      <div>
-        <StatusPill className="border-white/[0.12] bg-white/[0.06] text-slate-200">
-          <Icon className="h-3.5 w-3.5 text-teal-200" />
-          {panel.eyebrow}
-        </StatusPill>
-        <h3 className="mt-5 text-3xl font-bold leading-tight text-white sm:text-4xl">{panel.title}</h3>
-        <p className="mt-4 text-lg leading-8 text-slate-300">{panel.body}</p>
-        <div className="mt-6 grid gap-3">
-          {panel.points.map((point) => (
-            <div key={point} className="flex items-center gap-3 text-slate-200">
-              <CheckCircle2 className="h-5 w-5 text-teal-300" />
-              <span>{point}</span>
+        <div className="absolute bottom-5 left-5 right-5 grid gap-3 sm:grid-cols-3">
+          {[
+            [Users, "2 people", "room scoped"],
+            [Wifi, signalLabel, "socket ready"],
+            [ShieldCheck, "private", "events guarded"],
+          ].map(([Icon, title, caption]) => (
+            <div key={title} className="rounded-3xl border border-white/70 bg-white/72 p-3 shadow-[0_12px_32px_rgba(0,0,0,0.12)] backdrop-blur-2xl">
+              <Icon className="h-4 w-4 text-[#0071e3]" />
+              <p className="mt-2 text-sm font-semibold text-[#111115]">{title}</p>
+              <p className="text-xs text-[#62626c]">{caption}</p>
             </div>
           ))}
         </div>
-      </div>
+      </StudioImage>
+      <motion.div
+        animate={{ y: [0, -14, 0], rotate: [-1, 1, -1] }}
+        transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
+        className="studio-floating-card left-0 top-2 hidden w-56 lg:block"
+      >
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#8a8a95]">Partner found</p>
+        <p className="mt-3 text-2xl font-semibold tracking-[-0.04em] text-[#111115]">Fresh stranger connected.</p>
+      </motion.div>
+      <motion.div
+        animate={{ y: [0, 12, 0], rotate: [1, -1, 1] }}
+        transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+        className="studio-floating-card bottom-6 right-0 hidden w-64 lg:block"
+      >
+        <div className="flex items-center gap-3">
+          <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#0071e3] text-white">
+            <Play className="h-4 w-4" />
+          </span>
+          <div>
+            <p className="text-sm font-semibold text-[#111115]">Next partner</p>
+            <p className="text-xs text-[#62626c]">Peer reset, no page refresh</p>
+          </div>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
 
-      <div className="relative min-h-80 overflow-hidden rounded-lg border border-white/[0.12] bg-white/[0.06] p-5 shadow-2xl shadow-black/30">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(20,184,166,0.22),transparent_34%),radial-gradient(circle_at_78%_28%,rgba(99,102,241,0.22),transparent_34%),linear-gradient(135deg,rgba(255,255,255,0.04),transparent)]" />
-        {panel.visual === "people" ? <PeopleVisual /> : null}
-        {panel.visual === "flow" ? <FlowVisual /> : null}
-        {panel.visual === "safety" ? <SafetyVisual /> : null}
+function FeatureCard({ feature, index }) {
+  const Icon = feature.icon;
+
+  return (
+    <motion.article
+      variants={fadeUp}
+      whileHover={{ y: -10, transition: { duration: 0.45, ease: [0.16, 1, 0.3, 1] } }}
+      className="studio-card group min-h-[18rem] p-6"
+    >
+      <div className={`flex h-[3.25rem] w-[3.25rem] items-center justify-center rounded-[1.35rem] bg-gradient-to-br ${feature.tint} text-white shadow-[0_16px_36px_rgba(0,113,227,0.18)]`}>
+        <Icon className="h-6 w-6" />
       </div>
+      <p className="mt-9 text-sm font-semibold text-[#8a8a95]">0{index + 1}</p>
+      <h3 className="mt-3 text-2xl font-semibold tracking-[-0.04em] text-[#111115]">{feature.title}</h3>
+      <p className="mt-4 leading-7 text-[#62626c]">{feature.body}</p>
+      <div className="mt-6 h-px w-full bg-gradient-to-r from-transparent via-black/10 to-transparent" />
     </motion.article>
   );
 }
 
-function PeopleVisual() {
+function StepRow({ step, index }) {
+  const reverse = index % 2 === 1;
+
   return (
-    <div className="relative z-10 grid h-full min-h-72 content-center gap-4">
-      <div className="grid grid-cols-2 gap-3">
-        {avatars.map((user, index) => (
-          <div key={user.name} className="rounded-lg border border-white/[0.12] bg-slate-950/[0.45] p-3 backdrop-blur">
-            <img loading="lazy" className="h-16 w-16 rounded-lg object-cover" src={user.src} alt={`${user.name} avatar`} />
-            <p className="mt-3 font-bold text-white">{user.name}</p>
-            <p className="text-sm text-slate-300">{index % 2 === 0 ? "Open to video" : "Text-first today"}</p>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function FlowVisual() {
-  return (
-    <div className="relative z-10 flex min-h-72 flex-col justify-center gap-4">
-      {["Join queue", "Create room", "Verify participants", "Stream media"].map((item, index) => (
-        <div key={item} className="grid grid-cols-[auto_1fr_auto] items-center gap-4 rounded-lg border border-white/[0.12] bg-slate-950/[0.45] p-4">
-          <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-white text-slate-950 text-sm font-bold">0{index + 1}</span>
-          <span className="font-semibold text-white">{item}</span>
-          <ArrowRight className="h-4 w-4 text-teal-200" />
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function SafetyVisual() {
-  return (
-    <div className="relative z-10 grid min-h-72 items-center gap-5 md:grid-cols-[0.7fr_1fr]">
-      <div className="rounded-lg border border-white/[0.12] bg-slate-950/[0.45] p-4">
-        <img loading="lazy" className="mx-auto h-36 w-36 rounded-lg" src="/assets/icons/privacy-spark.svg" alt="Private signaling shield" />
-      </div>
-      <div className="grid gap-3">
-        {["Participant-checked messages", "Offers and answers scoped", "ICE candidates verified"].map((item) => (
-          <div key={item} className="rounded-lg border border-white/[0.12] bg-white/[0.07] p-4 text-sm font-semibold text-white">
-            {item}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function HowItWorks() {
-  return (
-    <section className="relative overflow-hidden bg-[#f6f8fb] py-24 text-slate-950">
-      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-teal-300 to-transparent" />
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="grid gap-8 lg:grid-cols-[0.7fr_1fr] lg:items-end">
-          <div>
-            <StatusPill className="border-slate-200 bg-white text-slate-700">
-              <Route className="h-3.5 w-3.5 text-teal-600" />
-              How it works
-            </StatusPill>
-            <h2 className="mt-5 text-3xl font-bold leading-tight sm:text-5xl">A fast path from curiosity to conversation.</h2>
-          </div>
-          <p className="text-lg leading-8 text-slate-600">
-            The product story is simple: choose your room type, enter the queue, get matched, and connect without clutter.
-          </p>
-        </div>
-
-        <div className="mt-10 grid gap-5 lg:grid-cols-[1.1fr_0.9fr] lg:items-stretch">
-          <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl">
-            <img loading="lazy" className="h-full min-h-80 w-full object-cover" src="/assets/illustrations/room-flow-board.svg" alt="Queue to room to peer flow illustration" />
-          </div>
-          <div className="grid gap-4">
-            {["FIFO matchmaking", "Clean rejoin handling", "Direct WebRTC media"].map((item) => (
-              <div key={item} className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-                <CheckCircle2 className="h-5 w-5 text-teal-600" />
-                <p className="mt-4 text-lg font-bold">{item}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="mt-6 grid gap-4 lg:grid-cols-4">
-          {flowSteps.map(({ title, body, icon: Icon }, index) => (
-            <motion.div
-              key={title}
-              whileHover={{ y: -6 }}
-              className="relative min-h-64 overflow-hidden rounded-lg border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-xl"
-            >
-              <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-teal-400 via-indigo-400 to-rose-400" />
-              <div className="flex items-center justify-between">
-                <span className="flex h-12 w-12 items-center justify-center rounded-lg bg-slate-950 text-white">
-                  <Icon className="h-5 w-5" />
-                </span>
-                <span className="text-sm font-bold text-slate-300">0{index + 1}</span>
-              </div>
-              <h3 className="mt-8 text-2xl font-bold">{title}</h3>
-              <p className="mt-3 leading-7 text-slate-600">{body}</p>
-              {index < flowSteps.length - 1 ? <div className="absolute -right-8 top-16 hidden h-px w-16 bg-slate-300 lg:block" /> : null}
-            </motion.div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function InteractionShowcase({ begin, startingMode }) {
-  return (
-    <section className="relative overflow-hidden py-24">
-      <div className="absolute inset-0 bg-[linear-gradient(180deg,#050711,#0c1020_48%,#050711)]" />
-      <div className="relative mx-auto grid max-w-7xl gap-10 px-4 sm:px-6 lg:grid-cols-[0.95fr_1.05fr] lg:px-8">
-        <div>
-          <SectionHeading
-            eyebrow="Real-time interaction"
-            title="Make the platform feel alive before a user joins."
-            body="Floating chat, active users, room state, signal status, and media controls communicate that Omegal is a real live interaction product."
-          />
-          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-            <Button variant="success" size="lg" type="button" disabled={Boolean(startingMode)} onClick={() => begin(CHAT_MODES.VIDEO)}>
-              <Video className="h-5 w-5" />
-              Start video match
-            </Button>
-            <Button variant="subtle" size="lg" type="button" disabled={Boolean(startingMode)} onClick={() => begin(CHAT_MODES.TEXT)}>
-              <MessageSquareText className="h-5 w-5" />
-              Start text match
-            </Button>
-          </div>
-        </div>
-
-        <div className="relative min-h-[30rem] overflow-hidden rounded-lg border border-white/[0.12] bg-white/[0.06] p-4 shadow-2xl shadow-black/30">
-          <img className="absolute -right-12 -top-16 h-72 w-72 opacity-70" src="/assets/mockups/connection-ring.svg" alt="" loading="lazy" />
-          <div className="relative grid gap-4">
-            <img
-              loading="lazy"
-              className="rounded-lg border border-white/[0.12] shadow-2xl shadow-black/20"
-              src="/assets/illustrations/chat-pulse.svg"
-              alt="Live text room chat pulse illustration"
-            />
-            <div className="rounded-lg border border-white/[0.12] bg-slate-950/[0.72] p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-bold text-white">Live text room</p>
-                  <p className="text-xs text-slate-400">Socket messages, no media prompt</p>
-                </div>
-                <StatusPill className="border-teal-300/25 bg-teal-300/10 text-teal-100">online</StatusPill>
-              </div>
-              <div className="mt-5 grid gap-3">
-                <div className="max-w-[80%] rounded-lg bg-white/10 p-3 text-sm leading-6 text-slate-100">What made you click tonight?</div>
-                <div className="ml-auto max-w-[80%] rounded-lg bg-teal-300 p-3 text-sm font-semibold leading-6 text-slate-950">
-                  Curious conversations, not a noisy feed.
-                </div>
-                <div className="max-w-[80%] rounded-lg bg-white/10 p-3 text-sm leading-6 text-slate-100">Same. This feels calmer already.</div>
-              </div>
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              {avatars.slice(0, 2).map((user) => (
-                <div key={user.name} className="rounded-lg border border-white/[0.12] bg-white/[0.07] p-4">
-                  <img loading="lazy" className="h-16 w-16 rounded-lg object-cover" src={user.src} alt={`${user.name} profile`} />
-                  <p className="mt-3 font-bold text-white">{user.name}</p>
-                  <p className="text-sm text-slate-300">available now</p>
+    <motion.article
+      variants={stagger}
+      initial="hidden"
+      whileInView="show"
+      viewport={{ once: true, margin: "-120px" }}
+      className={`grid items-center gap-10 lg:grid-cols-[0.82fr_1fr] ${reverse ? "lg:grid-cols-[1fr_0.82fr]" : ""}`}
+    >
+      <motion.div variants={fadeUp} className={reverse ? "lg:order-2" : ""}>
+        <div className="relative">
+          <span className="absolute -left-4 -top-16 text-[8rem] font-semibold leading-none tracking-[-0.08em] text-black/[0.045] sm:text-[12rem]">
+            {step.number}
+          </span>
+          <div className="relative">
+            <Eyebrow icon={Radar}>{step.eyebrow}</Eyebrow>
+            <h3 className="mt-6 text-4xl font-semibold leading-[0.92] tracking-[-0.055em] text-[#111115] sm:text-6xl">
+              {step.title}
+            </h3>
+            <p className="mt-6 max-w-xl text-lg leading-8 text-[#62626c]">{step.body}</p>
+            <div className="mt-8 grid gap-3">
+              {step.points.map((point) => (
+                <div key={point} className="flex items-center gap-3 text-[#202027]">
+                  <CheckCircle2 className="h-5 w-5 text-[#34c759]" />
+                  <span className="font-medium">{point}</span>
                 </div>
               ))}
             </div>
           </div>
         </div>
-      </div>
-    </section>
-  );
-}
-
-function Testimonials() {
-  return (
-    <section className="bg-[#f6f8fb] py-24 text-slate-950">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-3xl text-center">
-          <StatusPill className="border-slate-200 bg-white text-slate-700">
-            <Star className="h-3.5 w-3.5 text-amber-500" />
-            User reactions
-          </StatusPill>
-          <h2 className="mt-5 text-3xl font-bold leading-tight sm:text-5xl">The kind of first impression people remember.</h2>
-        </div>
-        <div className="mt-10 grid gap-4 lg:grid-cols-3">
-          {reactions.map((reaction) => (
-            <motion.figure key={reaction.person} whileHover={{ y: -5 }} className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-xl">
-              <Quote className="h-7 w-7 text-teal-500" />
-              <blockquote className="mt-5 text-lg leading-8 text-slate-700">{reaction.quote}</blockquote>
-              <figcaption className="mt-6 border-t border-slate-200 pt-4">
-                <p className="font-bold">{reaction.person}</p>
-                <p className="text-sm text-slate-500">{reaction.role}</p>
-              </figcaption>
-            </motion.figure>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function FAQSection() {
-  return (
-    <section className="py-24">
-      <div className="mx-auto grid max-w-7xl gap-8 px-4 sm:px-6 lg:grid-cols-[0.8fr_1.2fr] lg:px-8">
-        <SectionHeading
-          eyebrow="FAQ"
-          title="Clear answers before the first match."
-          body="A launch-ready social product needs trust and clarity, not only a beautiful hero."
-        />
-        <div className="grid gap-3">
-          {faqs.map((faq) => (
-            <details key={faq.question} className="group rounded-lg border border-white/[0.12] bg-white/[0.06] p-5">
-              <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-lg font-bold text-white">
-                {faq.question}
-                <ChevronDown className="h-5 w-5 text-slate-400 transition group-open:rotate-180" />
-              </summary>
-              <p className="mt-4 leading-7 text-slate-300">{faq.answer}</p>
-            </details>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function FinalCTA({ selectedMode, setSelectedMode, startingMode, begin }) {
-  return (
-    <section className="px-4 pb-16 sm:px-6 lg:px-8">
-      <div className="relative mx-auto max-w-7xl overflow-hidden rounded-lg border border-white/[0.12] bg-white/[0.07] p-6 shadow-2xl shadow-black/30 md:p-10">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(20,184,166,0.22),transparent_30%),radial-gradient(circle_at_76%_28%,rgba(244,63,94,0.16),transparent_28%)]" />
-        <div className="relative grid gap-8 lg:grid-cols-[1fr_24rem] lg:items-center">
-          <div>
-            <StatusPill className="border-white/[0.12] bg-white/10 text-white">
-              <Zap className="h-3.5 w-3.5 text-amber-200" />
-              Ready when they are
-            </StatusPill>
-            <h2 className="mt-5 text-4xl font-bold leading-tight text-white sm:text-5xl">Turn curiosity into a live Omegal room.</h2>
-            <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-300">
-              Join a random text or video room with a clean queue, strict signaling, and direct WebRTC media.
-            </p>
+      </motion.div>
+      <motion.div variants={fadeUp} className={reverse ? "lg:order-1" : ""}>
+        <div className="studio-flow-panel">
+          <img src={flowStudio} alt="" aria-hidden="true" loading="eager" className="h-full w-full rounded-[2rem] object-cover" />
+          <div className="absolute inset-0 bg-gradient-to-br from-white/0 via-white/10 to-white/55" />
+          <div className="absolute bottom-5 left-5 rounded-3xl border border-white/70 bg-white/75 px-4 py-3 shadow-[0_16px_38px_rgba(0,0,0,0.12)] backdrop-blur-2xl">
+            <p className="text-sm font-semibold text-[#111115]">Flow node {step.number}</p>
+            <p className="text-xs text-[#62626c]">Queue to room to reconnect</p>
           </div>
-          <ModeLauncher selectedMode={selectedMode} setSelectedMode={setSelectedMode} startingMode={startingMode} begin={begin} compact />
+        </div>
+      </motion.div>
+    </motion.article>
+  );
+}
+
+function Footer() {
+  return (
+    <footer className="border-t border-black/[0.08] bg-[#f7f5ef] text-[#62626c]">
+      <div className="studio-container py-10">
+        <p className="max-w-4xl text-[11px] leading-5">
+          OmegleX is a live social discovery product. Always follow local laws, respect other people, and leave a room whenever a
+          conversation does not feel right. Availability of video, audio, and signaling features may vary by browser and network.
+        </p>
+        <div className="mt-8 grid gap-8 border-t border-black/[0.08] pt-8 text-xs sm:grid-cols-2 lg:grid-cols-4">
+          {footerColumns.map(([title, ...items]) => (
+            <div key={title}>
+              <h3 className="font-semibold text-[#111115]">{title}</h3>
+              <ul className="mt-3 grid gap-2">
+                {items.map((item) => (
+                  <li key={item}>
+                    <a href="/" className="transition hover:text-[#111115]" onClick={(event) => event.preventDefault()}>
+                      {item}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+        <div className="mt-8 flex flex-col gap-3 border-t border-black/[0.08] pt-6 text-[11px] sm:flex-row sm:items-center sm:justify-between">
+          <p>Copyright 2026 OmegleX. All rights reserved.</p>
+          <p>Privacy Policy | Terms of Use | Legal | Site Map</p>
         </div>
       </div>
-    </section>
+    </footer>
   );
 }
 
 export default function Home() {
   const navigate = useNavigate();
   const { startQueue } = useQueue();
-  const [startingMode, setStartingMode] = useState(null);
-  const [selectedMode, setSelectedMode] = useState(CHAT_MODES.VIDEO);
   const socketStatus = useAppStore((state) => state.socketStatus);
+  const [startingMode, setStartingMode] = useState(null);
 
-  const begin = async (mode = selectedMode) => {
+  const begin = async (mode) => {
     setStartingMode(mode);
     const queued = await startQueue(mode);
     setStartingMode(null);
@@ -663,124 +365,274 @@ export default function Home() {
 
   const signalOnline = socketStatus === SOCKET_STATUS.CONNECTED;
   const signalLabel = signalOnline ? "Signal online" : socketStatus === SOCKET_STATUS.CONNECTING ? "Connecting" : "Signal offline";
+  const isStarting = Boolean(startingMode);
 
   return (
-    <AppShell variant="marketing">
-      <main className="overflow-hidden">
-        <section className="relative min-h-screen overflow-hidden pt-16">
-          <div className="absolute inset-0 bg-cover bg-center opacity-95" style={{ backgroundImage: "url('/assets/backgrounds/aurora-mesh.svg')" }} />
-          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(5,7,17,0.38),rgba(5,7,17,0.78)_58%,#050711)]" />
-          <div className="marketing-noise absolute inset-0 opacity-35" />
-
-          <div className="relative mx-auto grid min-h-[calc(100vh-4rem)] max-w-7xl items-center gap-10 px-4 py-10 sm:px-6 lg:grid-cols-[0.92fr_1.08fr] lg:px-8">
-            <div className="relative z-10">
-              <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }}>
-                <StatusPill className="border-white/[0.14] bg-white/10 text-teal-100 shadow-2xl shadow-teal-950/20 backdrop-blur-xl">
-                  <Sparkles className="h-3.5 w-3.5 text-teal-200" />
-                  Modern stranger rooms, rebuilt for trust
-                </StatusPill>
-                <h1 className="mt-6 max-w-4xl text-5xl font-black leading-[0.98] text-white sm:text-6xl lg:text-7xl">
-                  Meet someone new, without the internet feeling random.
-                </h1>
-                <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-200 sm:text-xl">
-                  Omegal turns random text and video rooms into a premium live social experience with a clean queue, strict signaling, and direct WebRTC media.
-                </p>
+    <AppShell>
+      <AmbientOrbs />
+      <main className="studio-page relative overflow-hidden">
+        <section className="studio-hero relative overflow-hidden px-4 pb-16 pt-24 sm:px-6 lg:pb-10 lg:pt-24">
+          <motion.div variants={stagger} initial="hidden" animate="show" className="studio-container relative z-10 grid items-center gap-12 lg:grid-cols-[0.92fr_1.08fr]">
+            <div className="relative">
+              <motion.div variants={fadeUp}>
+                <Eyebrow>OmegleX signal studio</Eyebrow>
               </motion.div>
-
-              <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, delay: 0.12 }} className="mt-8 max-w-xl">
-                <ModeLauncher selectedMode={selectedMode} setSelectedMode={setSelectedMode} startingMode={startingMode} begin={begin} />
+              <motion.h1 variants={fadeUp} className="mt-7 max-w-3xl text-6xl font-semibold leading-[0.86] tracking-[-0.075em] text-[#111115] sm:text-7xl lg:text-[5.85rem] xl:text-[6.4rem]">
+                Random chat,
+                <br />
+                rebuilt as a <GradientWord>living room.</GradientWord>
+              </motion.h1>
+              <motion.p variants={fadeUp} className="mt-6 max-w-2xl text-xl leading-8 text-[#62626c] sm:text-xl sm:leading-9">
+                Random video and text conversations redesigned as a calm, private, real-time social experience.
+              </motion.p>
+              <motion.div variants={fadeUp} className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
+                <CTAButton icon={Video} onClick={() => begin(CHAT_MODES.VIDEO)} disabled={isStarting}>
+                  {startingMode === CHAT_MODES.VIDEO ? "Opening room..." : "Start video room"}
+                </CTAButton>
+                <CTAButton secondary icon={MessageSquareText} onClick={() => begin(CHAT_MODES.TEXT)} disabled={isStarting}>
+                  {startingMode === CHAT_MODES.TEXT ? "Opening text..." : "Start text room"}
+                </CTAButton>
               </motion.div>
-
-              <div className="mt-8 grid max-w-xl grid-cols-3 gap-3">
+              <motion.div variants={fadeUp} className="mt-8 grid max-w-2xl grid-cols-3 gap-3">
                 {[
-                  [Globe2, "Global", "people online"],
-                  [LockKeyhole, "Private", "room scoped"],
-                  [Zap, "Fast", "live matching"],
-                ].map(([Icon, title, label]) => (
-                  <div key={title} className="rounded-lg border border-white/10 bg-white/[0.06] p-3 backdrop-blur">
-                    <Icon className="h-5 w-5 text-teal-200" />
-                    <p className="mt-3 text-sm font-bold text-white">{title}</p>
-                    <p className="text-xs text-slate-300">{label}</p>
+                  ["Private", "signaling"],
+                  ["Clean", "queue"],
+                  ["No", "refresh"],
+                ].map(([value, label]) => (
+                  <div key={label} className="studio-stat-card">
+                    <p className="text-2xl font-semibold tracking-[-0.04em] text-[#111115] sm:text-3xl">{value}</p>
+                    <p className="mt-1 text-sm text-[#62626c]">{label}</p>
+                  </div>
+                ))}
+              </motion.div>
+            </div>
+            <HeroVisual signalLabel={signalLabel} />
+          </motion.div>
+        </section>
+
+        <section className="studio-section bg-[#fbfbfd]">
+          <div className="studio-container">
+            <div className="grid items-end gap-8 lg:grid-cols-[0.9fr_1.1fr]">
+              <SectionIntro
+                align="left"
+                eyebrow="Live product architecture"
+                title={
+                  <>
+                    Every signal has a <GradientWord>visual place.</GradientWord>
+                  </>
+                }
+                body="The interface turns matchmaking, privacy, WebRTC, and next-partner switching into one coherent product story."
+                icon={Sparkles}
+              />
+              <motion.div variants={fadeUp} initial="hidden" whileInView="show" viewport={{ once: true, margin: "-120px" }} className="studio-wide-art">
+                <img src={featuresStudio} alt="" aria-hidden="true" loading="eager" className="h-full w-full object-cover" />
+                <div className="absolute inset-0 bg-gradient-to-t from-white/75 via-white/0 to-white/5" />
+                <div className="absolute bottom-5 left-5 right-5 flex flex-wrap gap-2">
+                  {["Queue", "WebRTC", "Safety", "Next"].map((item) => (
+                    <span key={item} className="rounded-full border border-white/80 bg-white/75 px-3 py-1.5 text-xs font-semibold text-[#111115] shadow-sm backdrop-blur-xl">
+                      {item}
+                    </span>
+                  ))}
+                </div>
+              </motion.div>
+            </div>
+
+            <motion.div
+              variants={stagger}
+              initial="hidden"
+              whileInView="show"
+              viewport={{ once: true, margin: "-120px" }}
+              className="mt-12 grid gap-4 md:grid-cols-2 lg:grid-cols-3"
+            >
+              {features.map((feature, index) => (
+                <FeatureCard key={feature.title} feature={feature} index={index} />
+              ))}
+            </motion.div>
+          </div>
+        </section>
+
+        <section className="studio-section bg-[#f7f5ef]">
+          <div className="studio-container grid gap-24">
+            <SectionIntro
+              eyebrow="How matching feels"
+              title={
+                <>
+                  From queue to room in three <GradientWord>clean moves.</GradientWord>
+                </>
+              }
+              body="The backend stays serious. The frontend makes the flow obvious, responsive, and emotionally calm."
+              icon={Radar}
+            />
+            {steps.map((step, index) => (
+              <StepRow key={step.title} step={step} index={index} />
+            ))}
+          </div>
+        </section>
+
+        <section className="studio-section bg-[#fbfbfd]">
+          <div className="studio-container grid items-center gap-12 lg:grid-cols-[0.95fr_1.05fr]">
+            <motion.div variants={fadeUp} initial="hidden" whileInView="show" viewport={{ once: true, margin: "-120px" }}>
+              <Eyebrow icon={ShieldCheck}>Safety and room privacy</Eyebrow>
+              <h2 className="mt-6 text-4xl font-semibold leading-[0.9] tracking-[-0.055em] text-[#111115] sm:text-6xl lg:text-7xl">
+                Calm by design.
+                <br />
+                Guarded by <GradientWord>room rules.</GradientWord>
+              </h2>
+              <p className="mt-6 max-w-xl text-lg leading-8 text-[#62626c]">
+                The frontend makes safety visible while the backend keeps queue, room, and WebRTC events scoped to the active session.
+              </p>
+              <div className="mt-8 grid gap-3 sm:grid-cols-3">
+                {["Participant checks", "Stale ICE guards", "Disconnect recovery"].map((point) => (
+                  <div key={point} className="studio-mini-card">
+                    <ShieldCheck className="h-5 w-5 text-[#34c759]" />
+                    <p className="mt-3 text-sm font-semibold text-[#111115]">{point}</p>
                   </div>
                 ))}
               </div>
-            </div>
-
-            <HeroMockup signalLabel={signalLabel} />
+            </motion.div>
+            <motion.div variants={fadeUp} initial="hidden" whileInView="show" viewport={{ once: true, margin: "-120px" }}>
+              <StudioImage src={safetyStudio} className="h-[32rem] rounded-[2.5rem]">
+                <div className="absolute right-5 top-5 rounded-3xl border border-white/75 bg-white/75 p-4 shadow-[0_16px_40px_rgba(0,0,0,0.12)] backdrop-blur-2xl">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#8a8a95]">Room safety</p>
+                  <p className="mt-2 text-xl font-semibold tracking-[-0.04em] text-[#111115]">Scoped events only</p>
+                </div>
+              </StudioImage>
+            </motion.div>
           </div>
         </section>
 
-        <ProofStrip />
-
-        <section className="relative py-24">
-          <div className="absolute inset-0 bg-[linear-gradient(180deg,#050711,#0a0f20_45%,#050711)]" />
-          <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <SectionHeading
-              eyebrow="Product story"
-              title="Not a dashboard. A launch-ready social platform narrative."
-              body="Every section exists to make users feel the product is real, safe, alive, and worth trying."
-              align="center"
-            />
-            <ProductNetworkBanner />
-            <div className="mt-16 grid gap-16">
-              {storyPanels.map((panel, index) => (
-                <VisualStory key={panel.title} panel={panel} index={index} />
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <HowItWorks />
-
-        <section className="relative overflow-hidden py-24">
-          <div className="absolute inset-0 bg-[#050711]" />
-          <div className="absolute inset-x-0 top-0 h-60 bg-gradient-to-b from-teal-950/30 to-transparent" />
-          <div className="relative mx-auto grid max-w-7xl gap-10 px-4 sm:px-6 lg:grid-cols-[0.8fr_1.2fr] lg:px-8">
-            <div>
-              <SectionHeading
-                eyebrow="Safety and moderation"
-                title="Privacy should be part of the visual product, not an afterthought."
-                body="The page makes room safety visible with participant-scoped signaling, clear states, and trust cues before users enter the room."
-              />
-              <div className="mt-8 grid gap-4 sm:grid-cols-[1fr_auto]">
-                <img
-                  loading="lazy"
-                  className="rounded-lg border border-white/[0.12] bg-white/[0.06] shadow-2xl shadow-black/20"
-                  src="/assets/illustrations/moderation-panel.svg"
-                  alt="Omegal moderation and private signaling illustration"
-                />
-                <img
-                  loading="lazy"
-                  className="hidden h-32 w-32 rounded-lg border border-white/[0.12] bg-white/[0.06] p-3 shadow-2xl shadow-black/20 sm:block"
-                  src="/assets/illustrations/signal-glass.svg"
-                  alt="Abstract secure signal illustration"
-                />
+        <section className="studio-section bg-[#eef4ff]">
+          <div className="studio-container grid items-center gap-12 lg:grid-cols-[1.08fr_0.92fr]">
+            <motion.div variants={fadeUp} initial="hidden" whileInView="show" viewport={{ once: true, margin: "-120px" }} className="studio-chat-showcase">
+              <img src={chatUiStudio} alt="" aria-hidden="true" loading="eager" className="h-full w-full object-cover" />
+              <div className="absolute inset-0 bg-gradient-to-tr from-white/80 via-white/5 to-transparent" />
+              <div className="absolute bottom-5 left-5 right-5 grid gap-3 sm:grid-cols-3">
+                {[
+                  [Mic, "Local media", "stable"],
+                  [MessageCircle, "Room chat", "slide-in"],
+                  [Zap, "Next", "instant"],
+                ].map(([Icon, title, body]) => (
+                  <div key={title} className="rounded-3xl border border-white/80 bg-white/75 p-4 shadow-[0_16px_38px_rgba(0,0,0,0.12)] backdrop-blur-2xl">
+                    <Icon className="h-5 w-5 text-[#0071e3]" />
+                    <p className="mt-3 text-sm font-semibold text-[#111115]">{title}</p>
+                    <p className="text-xs text-[#62626c]">{body}</p>
+                  </div>
+                ))}
               </div>
-            </div>
-            <div className="grid gap-4 md:grid-cols-2">
-              {[
-                ["Private signaling", "Room events stay scoped to matched participants.", ShieldCheck],
-                ["Participant-checked events", "Messages, offers, answers, and ICE candidates are validated.", LockKeyhole],
-                ["Clean rejoin handling", "If a peer disappears, connected users remain eligible.", Users],
-                ["No media prompt for text", "Text rooms use socket messages without camera pressure.", MessageSquareText],
-              ].map(([title, body, Icon]) => (
-                <motion.div key={title} whileHover={{ y: -5 }} className="rounded-lg border border-white/[0.12] bg-white/[0.06] p-5 shadow-2xl shadow-black/20">
-                  <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-white text-slate-950">
-                    <Icon className="h-5 w-5" />
-                  </span>
-                  <h3 className="mt-5 text-xl font-bold text-white">{title}</h3>
-                  <p className="mt-3 leading-7 text-slate-300">{body}</p>
+            </motion.div>
+            <motion.div variants={fadeUp} initial="hidden" whileInView="show" viewport={{ once: true, margin: "-120px" }}>
+              <Eyebrow icon={Video}>Actual chat UI</Eyebrow>
+              <h2 className="mt-6 text-4xl font-semibold leading-[0.9] tracking-[-0.055em] text-[#111115] sm:text-6xl">
+                Full-screen when it matters.
+                <br />
+                Chat when it helps.
+              </h2>
+              <p className="mt-6 max-w-xl text-lg leading-8 text-[#62626c]">
+                Video takes the stage, local preview stays readable, controls float near the thumb zone, and messages never push the layout around.
+              </p>
+              <div className="mt-9 flex flex-col gap-3 sm:flex-row">
+                <CTAButton icon={Video} onClick={() => begin(CHAT_MODES.VIDEO)} disabled={isStarting}>Try video</CTAButton>
+                <CTAButton secondary icon={ArrowRight} onClick={() => begin(CHAT_MODES.TEXT)} disabled={isStarting}>Open text room</CTAButton>
+              </div>
+            </motion.div>
+          </div>
+        </section>
+
+        <section className="studio-section bg-[#fbfbfd]">
+          <div className="studio-container">
+            <SectionIntro
+              eyebrow="Social proof"
+              title={
+                <>
+                  The room should feel <GradientWord>alive</GradientWord> before anyone speaks.
+                </>
+              }
+              body="Small cues, real states, and polished motion make the product feel trustworthy from the first second."
+              icon={Users}
+            />
+            <motion.div
+              variants={stagger}
+              initial="hidden"
+              whileInView="show"
+              viewport={{ once: true, margin: "-120px" }}
+              className="mt-12 grid gap-4 md:grid-cols-3"
+            >
+              {reactions.map(([title, body], index) => (
+                <motion.div key={title} variants={fadeUp} className="studio-card relative p-6">
+                  <div className="absolute right-5 top-5 flex -space-x-2" aria-hidden="true">
+                    {[0, 1, 2].map((offset) => (
+                      <span
+                        key={offset}
+                        className="h-8 w-8 rounded-full border-2 border-white shadow-sm"
+                        style={{
+                          background: `linear-gradient(135deg, ${["#0071e3", "#af52de", "#34c759", "#ff9f0a", "#ff375f"][index + offset]}, #ffffff)`,
+                        }}
+                      />
+                    ))}
+                  </div>
+                  <p className="text-2xl font-semibold tracking-[-0.04em] text-[#111115]">{title}</p>
+                  <p className="mt-4 leading-7 text-[#62626c]">{body}</p>
+                  <p className="mt-8 text-xs font-semibold uppercase tracking-[0.18em] text-[#8a8a95]">User reaction</p>
                 </motion.div>
               ))}
+            </motion.div>
+          </div>
+        </section>
+
+        <section className="studio-section bg-[#f7f5ef]">
+          <div className="studio-container grid gap-10 lg:grid-cols-[0.82fr_1.18fr]">
+            <SectionIntro
+              align="left"
+              eyebrow="FAQ"
+              title={
+                <>
+                  Clear answers.
+                  <br />
+                  Less <GradientWord>uncertainty.</GradientWord>
+                </>
+              }
+              icon={MessageCircle}
+            />
+            <div className="grid gap-3">
+              {faqs.map(([question, answer]) => (
+                <details key={question} className="studio-card group p-5">
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-lg font-semibold tracking-[-0.02em] text-[#111115]">
+                    {question}
+                    <ChevronDown className="h-5 w-5 text-[#62626c] transition group-open:rotate-180" />
+                  </summary>
+                  <p className="mt-4 leading-7 text-[#62626c]">{answer}</p>
+                </details>
+              ))}
             </div>
           </div>
         </section>
 
-        <InteractionShowcase begin={begin} startingMode={startingMode} />
-        <Testimonials />
-        <FAQSection />
-        <FinalCTA selectedMode={selectedMode} setSelectedMode={setSelectedMode} startingMode={startingMode} begin={begin} />
+        <section className="relative overflow-hidden bg-[#fbfbfd] px-4 py-24 sm:px-6">
+          <div className="studio-container">
+            <div className="studio-final-cta">
+              <div className="relative z-10 max-w-3xl">
+                <Eyebrow icon={Sparkles}>Ready to connect</Eyebrow>
+                <h2 className="mt-6 text-5xl font-semibold leading-[0.88] tracking-[-0.06em] text-[#111115] sm:text-7xl">
+                  Start a private <GradientWord>OmegleX</GradientWord> room.
+                </h2>
+                <p className="mt-6 text-lg leading-8 text-[#62626c]">
+                  The product is built for quick entry, clean matching, stable media, and a clear next-partner path.
+                </p>
+                <div className="mt-9 flex flex-col gap-3 sm:flex-row">
+                  <CTAButton icon={Video} onClick={() => begin(CHAT_MODES.VIDEO)} disabled={isStarting}>Start video</CTAButton>
+                  <CTAButton secondary icon={MessageSquareText} onClick={() => begin(CHAT_MODES.TEXT)} disabled={isStarting}>Start text</CTAButton>
+                </div>
+              </div>
+              <div
+                aria-hidden="true"
+                className="absolute -right-24 bottom-0 hidden h-[24rem] w-[34rem] rotate-[-8deg] rounded-[2rem] bg-cover bg-center opacity-80 shadow-[0_34px_80px_rgba(0,0,0,0.18)] lg:block"
+                style={{ backgroundImage: `url(${heroStudio})` }}
+              />
+            </div>
+          </div>
+        </section>
       </main>
+      <Footer />
     </AppShell>
   );
 }

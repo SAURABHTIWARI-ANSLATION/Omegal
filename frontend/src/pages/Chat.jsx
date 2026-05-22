@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Activity, AlertTriangle, LockKeyhole, MessageSquareText, Radio, Video } from "lucide-react";
+import { AlertTriangle, MessageSquareText, Sparkles, Video } from "lucide-react";
 import AppShell from "../components/layout/AppShell.jsx";
 import Button from "../components/ui/Button.jsx";
 import Badge from "../components/ui/Badge.jsx";
@@ -11,6 +11,7 @@ import { useQueue } from "../hooks/useQueue.js";
 import { useAppStore } from "../store/appStore.js";
 import { CHAT_MODES, SESSION_STATUS } from "../utils/constants.js";
 import { cn } from "../utils/helpers.js";
+import chatUiStudio from "../assets/studio/chat-ui-studio.jpg";
 
 function IdleChat() {
   const navigate = useNavigate();
@@ -22,23 +23,36 @@ function IdleChat() {
   };
 
   return (
-    <section className="mx-auto flex min-h-screen max-w-5xl items-center px-4 pt-24 pb-8 sm:px-6 lg:px-8">
-      <div className="surface-panel relative w-full overflow-hidden rounded-lg p-5 sm:p-8">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_15%_10%,rgba(20,184,166,0.12),transparent_30%),radial-gradient(circle_at_92%_18%,rgba(99,102,241,0.12),transparent_28%)]" />
-        <div className="relative">
-          <Badge variant="info">No active room</Badge>
-          <h1 className="mt-5 text-3xl font-black text-slate-950 sm:text-5xl">Choose a room mode.</h1>
-          <p className="mt-4 max-w-2xl text-base leading-7 text-slate-600">Your browser will join the backend queue and wait for a matching socket.</p>
+    <section className="chat-glow relative mx-auto flex min-h-screen max-w-6xl items-center px-4 pb-8 pt-24 sm:px-6 lg:px-8">
+      <div className="studio-card relative grid w-full overflow-hidden p-5 sm:p-7 lg:grid-cols-[0.88fr_1.12fr] lg:p-8">
+        <div className="relative z-10 flex flex-col justify-center p-2 sm:p-4">
+          <Badge variant="info">
+            <Sparkles className="h-3.5 w-3.5" />
+            No active room
+          </Badge>
+          <h1 className="mt-6 text-4xl font-semibold leading-[0.9] tracking-[-0.055em] text-[#111115] sm:text-6xl">Choose a room mode.</h1>
+          <p className="mt-5 max-w-2xl text-base leading-7 text-[#62626c] sm:text-lg">Your browser will join the backend queue and wait for a matching socket.</p>
+          <div className="relative mt-8 grid gap-3 sm:grid-cols-2">
+            <Button size="lg" type="button" onClick={() => begin(CHAT_MODES.VIDEO)}>
+              <Video className="h-5 w-5" />
+              Start video
+            </Button>
+            <Button size="lg" type="button" variant="secondary" onClick={() => begin(CHAT_MODES.TEXT)}>
+              <MessageSquareText className="h-5 w-5" />
+              Start text
+            </Button>
+          </div>
         </div>
-        <div className="relative mt-8 grid gap-3 sm:grid-cols-2">
-          <Button size="lg" type="button" onClick={() => begin(CHAT_MODES.VIDEO)}>
-            <Video className="h-5 w-5" />
-            Start video
-          </Button>
-          <Button size="lg" type="button" variant="secondary" onClick={() => begin(CHAT_MODES.TEXT)}>
-            <MessageSquareText className="h-5 w-5" />
-            Start text
-          </Button>
+        <div className="relative mt-6 min-h-[22rem] overflow-hidden rounded-[2rem] bg-[#eef4ff] lg:mt-0">
+          <img src={chatUiStudio} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover" />
+          <div className="absolute inset-0 bg-gradient-to-t from-white/75 via-white/0 to-white/20" />
+          <div className="absolute bottom-4 left-4 right-4 grid gap-2 sm:grid-cols-3">
+            {["Private room", "Live queue", "Next ready"].map((label) => (
+              <span key={label} className="rounded-full border border-white/80 bg-white/75 px-3 py-2 text-center text-xs font-semibold text-[#111115] shadow-sm backdrop-blur-xl">
+                {label}
+              </span>
+            ))}
+          </div>
         </div>
       </div>
     </section>
@@ -50,23 +64,23 @@ function TextRoomPanel() {
   const partnerId = useAppStore((state) => state.partnerId);
 
   return (
-    <section className="media-panel hidden min-h-[34rem] rounded-lg p-5 text-white lg:flex lg:flex-col">
-      <div className="flex items-center justify-between gap-3 border-b border-white/10 pb-4">
+    <section className="liquid-panel hidden min-h-[34rem] rounded-[2rem] p-5 text-[#1d1d1f] lg:flex lg:flex-col">
+      <div className="flex items-center justify-between gap-3 border-b border-black/[0.08] pb-4">
         <div>
-          <p className="text-sm font-semibold text-teal-200">Private room</p>
-          <h1 className="mt-2 text-3xl font-bold">Text conversation</h1>
+          <p className="text-sm font-semibold text-[#0071e3]">Private room</p>
+          <h1 className="mt-2 text-3xl font-semibold tracking-[-0.03em]">Text conversation</h1>
         </div>
         <Badge variant="dark">Socket room</Badge>
       </div>
 
       <div className="grid flex-1 content-center gap-3 py-6">
-        <div className="rounded-lg border border-white/10 bg-white/10 p-4">
-          <p className="text-sm text-slate-400">Room ID</p>
-          <p className="mt-2 break-all font-mono text-sm text-slate-100">{roomId || "pending"}</p>
+        <div className="liquid-card rounded-[1.25rem] p-4">
+          <p className="text-sm text-[#6e6e73]">Room ID</p>
+          <p className="mt-2 break-all font-mono text-sm text-[#1d1d1f]">{roomId || "pending"}</p>
         </div>
-        <div className="rounded-lg border border-white/10 bg-white/10 p-4">
-          <p className="text-sm text-slate-400">Partner socket</p>
-          <p className="mt-2 break-all font-mono text-sm text-slate-100">{partnerId || "pending"}</p>
+        <div className="liquid-card rounded-[1.25rem] p-4">
+          <p className="text-sm text-[#6e6e73]">Partner socket</p>
+          <p className="mt-2 break-all font-mono text-sm text-[#1d1d1f]">{partnerId || "pending"}</p>
         </div>
       </div>
     </section>
@@ -97,14 +111,14 @@ export default function Chat() {
   if (queueStatus === SESSION_STATUS.ERROR) {
     return (
       <AppShell>
-        <section className="mx-auto flex min-h-screen max-w-3xl items-center px-4 pt-24 pb-10">
-          <div className="surface-panel w-full rounded-lg p-6 text-center">
+        <section className="relative mx-auto flex min-h-screen max-w-3xl items-center px-4 pb-10 pt-24">
+          <div className="liquid-panel w-full rounded-[2rem] p-6 text-center">
             <Badge variant="error">
               <AlertTriangle className="h-3.5 w-3.5" />
               Setup failed
             </Badge>
-            <h1 className="mt-5 text-4xl font-bold text-slate-950">Could not start the session.</h1>
-            <p className="mt-4 text-slate-600">{lastError}</p>
+            <h1 className="mt-5 text-4xl font-semibold tracking-[-0.03em] text-[#1d1d1f]">Could not start the session.</h1>
+            <p className="mt-4 text-[#6e6e73]">{lastError}</p>
           </div>
         </section>
       </AppShell>
@@ -120,46 +134,30 @@ export default function Chat() {
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -16 }}
         transition={{ duration: 0.3 }}
-        className="relative mx-auto mt-16 flex h-[calc(100dvh-4rem)] max-w-[92rem] flex-col overflow-hidden px-3 pt-3 pb-3 sm:px-5 lg:px-6"
+        className={cn(
+          "chat-glow chat-room-main relative mt-[56px] h-[calc(100dvh-56px)] overflow-hidden bg-[#f7f5ef] text-[#111115]",
+          isVideo ? "facetime-room" : "mx-auto flex max-w-[92rem] flex-col px-3 py-3 sm:px-5"
+        )}
       >
-        <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-44 bg-[radial-gradient(circle_at_18%_0%,rgba(20,184,166,0.18),transparent_32%),radial-gradient(circle_at_82%_15%,rgba(99,102,241,0.16),transparent_30%)]" />
-
-        <div className="mb-2 shrink-0 rounded-lg border border-slate-200/80 bg-white/86 p-2.5 shadow-sm backdrop-blur-xl sm:mb-3 sm:p-3">
-          <div className="flex items-center justify-between gap-2 sm:gap-3">
-            <div className="min-w-0">
-              <div className="flex min-w-0 flex-wrap items-center gap-1.5 sm:gap-2">
-                <Badge variant={isVideo ? "info" : "success"}>{isVideo ? "Video mode" : "Text mode"}</Badge>
-                <span className="inline-flex items-center gap-1.5 rounded-md border border-teal-200 bg-teal-50 px-2.5 py-1 text-xs font-semibold text-teal-700">
-                  <Activity className="h-3.5 w-3.5" />
-                  Live room
-                </span>
-              </div>
-              <h1 className="mt-1.5 truncate text-lg font-black tracking-normal text-slate-950 sm:text-2xl">Private stranger room</h1>
-            </div>
-
-            <div className="hidden grid-cols-2 gap-2 text-xs font-semibold text-slate-600 sm:grid md:flex">
-              <span className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                <LockKeyhole className="h-3.5 w-3.5 text-teal-600" />
-                Isolated room
-              </span>
-              <span className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                <Radio className="h-3.5 w-3.5 text-indigo-600" />
-                Realtime signal
-              </span>
-            </div>
-          </div>
-        </div>
-
         <div
           className={cn(
-            "grid min-h-0 flex-1 gap-3",
+            "relative z-10 grid min-h-0 flex-1",
             isVideo
-              ? "grid-rows-[minmax(0,1fr)_minmax(11.5rem,0.34fr)] sm:grid-rows-[minmax(0,1fr)_minmax(13rem,0.36fr)] lg:grid-cols-[minmax(0,1fr)_21rem] lg:grid-rows-1 xl:grid-cols-[minmax(0,1fr)_23rem]"
-              : "grid-rows-[minmax(0,1fr)] lg:grid-cols-[minmax(0,1fr)_minmax(22rem,0.4fr)]"
+              ? "h-full"
+              : "gap-3 grid-rows-[minmax(0,1fr)] lg:grid-cols-[minmax(0,1fr)_minmax(22rem,0.4fr)]"
           )}
         >
-          {isVideo ? <VideoStage /> : <TextRoomPanel />}
-          <ChatSidebar compact={isVideo} expanded={!isVideo} className={isVideo ? "min-h-0" : ""} />
+          {isVideo ? (
+            <>
+              <VideoStage />
+              <ChatSidebar compact className="chat-facetime-panel" />
+            </>
+          ) : (
+            <>
+              <TextRoomPanel />
+              <ChatSidebar expanded className="min-h-0" />
+            </>
+          )}
         </div>
       </motion.main>
     </AppShell>

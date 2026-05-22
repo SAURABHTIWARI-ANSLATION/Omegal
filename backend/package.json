@@ -14,21 +14,25 @@
   ],
   "scripts": {
     "test": "node --test",
+    "load:test": "node scripts/socket-load-runner.mjs",
     "build": " npm install && npm run start",
     "dev": "nodemon server.js",
     "start": "node server.js"
   },
   "dependencies": {
+    "@socket.io/redis-adapter": "^8.3.0",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "express": "^5.2.1",
     "helmet": "^8.1.0",
     "peerjs": "^1.5.5",
+    "redis": "^4.7.1",
     "socket.io": "^4.8.3",
     "uuid": "^14.0.0",
     "winston": "^3.19.0"
   },
   "devDependencies": {
-    "nodemon": "^3.1.14"
+    "nodemon": "^3.1.14",
+    "socket.io-client": "^4.8.3"
   }
 }

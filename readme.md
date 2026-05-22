@@ -8,7 +8,7 @@ Altf-stranger Meet is a privacy-focused, anonymous chat application that connect
 
 The architecture follows a decoupled client-server model:
 
-* **Backend:** A Node.js signaling and matchmaking server.
+* **Backend:** A Node.js signaling and matchmaking server with optional Redis-backed scale mode.
 * **Frontend:** A high-performance React SPA with a premium glassmorphism design.
 
 ## Features
@@ -23,8 +23,9 @@ The architecture follows a decoupled client-server model:
 
 ### Backend Features
 
-* In-Memory Matching: Blazing fast matchmaking using a FIFO queue system.
-* Room Management: Automated lifecycle management for private chat rooms.
+* FIFO Matching: Blazing fast matchmaking using memory locally and Redis in production scale mode.
+* Room Management: Automated lifecycle management for private chat rooms with shared Redis room state when configured.
+* Redis Scale Mode: Socket.IO Redis adapter, shared queue/room state, distributed locks, and capacity metrics for multi-instance deployments.
 * Graceful Cleanup: Automatic resource release on socket disconnection.
 * Health Monitoring: Built-in health check endpoints for deployment monitoring.
 
@@ -52,6 +53,7 @@ The architecture follows a decoupled client-server model:
 * Runtime: Node.js
 * Framework: Express.js
 * Real-time: Socket.io
+* Scale State: Redis / Upstash-compatible Redis URL
 * Logging: Winston
 * ID Generation: UUID v4
 
@@ -112,6 +114,7 @@ altfmegle/
 | ------ | --------- | ----------------------------------- |
 | GET    | `/`       | Welcome message and version info.   |
 | GET    | `/health` | Server health status and timestamp. |
+| GET    | `/admin/metrics` | Protected capacity, queue, room, and Redis status metrics. |
 
 ## Installation Guide
 
@@ -140,6 +143,13 @@ altfmegle/
 * `PORT`: Port the server runs on (default: 5000).
 * `CORS_ORIGIN`: Allowed frontend URL (e.g., `http://localhost:5173`).
 * `NODE_ENV`: development or production.
+* `ADMIN_TOKEN`: Token required for `/admin/metrics`.
+* `REDIS_URL`: Redis connection string. Leave empty for local memory mode.
+* `REDIS_KEY_PREFIX`: Prefix for app keys in Redis (default: `omegal`).
+* `REDIS_STATE_ENABLED`: Enables Redis queue/room/lock state when `REDIS_URL` is present.
+* `REDIS_SOCKET_ADAPTER_ENABLED`: Enables the Socket.IO Redis adapter when `REDIS_URL` is present.
+* `ROOM_WRITE_LOCK_TTL_MS`: Per-room write lock TTL for Redis-backed room updates.
+* `MAX_CONNECTED_SOCKETS`, `MAX_QUEUE_SIZE`, `MAX_ACTIVE_ROOMS`: Load-shedding limits.
 
 ### Frontend (`/frontend/.env`)
 
@@ -157,13 +167,15 @@ altfmegle/
 
 * Deploy to Render, Railway, or Heroku.
 * Set `CORS_ORIGIN` to your frontend production domain.
-* Use a process manager like PM2 for auto-restarts.
+* Add `REDIS_URL` when you need shared matchmaking state or multiple backend instances.
+* Use a process manager like PM2 for auto-restarts where the host supports it.
 
 **Note:** Use WSS (Secure WebSockets) for production.
 
 ## Scalability & Performance
 
-* In-Memory Tracking: Optimized for speed, though a Redis adapter for Socket.io is recommended for multi-node scaling.
+* Memory Mode: Optimized for local development and single-instance deployments.
+* Redis Mode: Enables shared queue, room, and distributed lock state plus Socket.IO cross-node broadcasting for multi-instance scaling.
 * WebRTC Offloading: Media traffic bypasses the server, reducing bandwidth costs significantly.
 * Zustand State: Fine-grained re-renders ensure the UI remains fluid even during heavy signaling.
 
