@@ -45,7 +45,7 @@ export default function MessageList({ compact = false }) {
       )}
     >
       {messages.length === 0 ? (
-        <div className={cn("flex min-h-full flex-col items-center justify-center bg-[radial-gradient(circle_at_50%_35%,rgba(0,113,227,0.08),transparent_34%)] px-4 text-center text-sm leading-6 text-[#6e6e73]", compact && "text-xs leading-5")}>
+        <div className={cn("flex min-h-full flex-col items-center justify-center bg-[radial-gradient(circle_at_50%_35%,rgba(0,113,227,0.08),transparent_34%)] px-4 text-center text-sm leading-6 text-[#62626c]", compact && "text-xs leading-5")}>
           <span className={cn("liquid-icon mb-3 flex h-11 w-11 items-center justify-center rounded-2xl text-[#0071e3]", compact && "mb-2 h-9 w-9")}>
             <MessagesSquare className="h-5 w-5" />
           </span>
@@ -71,8 +71,8 @@ export default function MessageList({ compact = false }) {
                       "min-w-[4.75rem] text-sm leading-6 shadow-sm",
                       compact ? "max-w-[min(90%,34rem)] px-3 py-2" : "max-w-[min(84%,34rem)] px-3.5 py-2.5 sm:px-4 sm:py-3",
                       isMine && "rounded-[18px_18px_4px_18px] bg-[#0071e3] text-white shadow-[0_8px_24px_rgba(0,113,227,0.18)]",
-                      !isMine && !isSystem && "rounded-[18px_18px_18px_4px] bg-black/[0.06] text-[#1d1d1f]",
-                      isSystem && "max-w-full rounded-full border border-black/[0.06] bg-white/[0.80] px-3 py-2 text-xs text-[#6e6e73] backdrop-blur-xl"
+                      !isMine && !isSystem && "rounded-[18px_18px_18px_4px] bg-black/[0.06] text-[#111115]",
+                      isSystem && "max-w-full rounded-full border border-black/[0.06] bg-white/[0.80] px-3 py-2 text-xs text-[#62626c] backdrop-blur-xl"
                     )}
                   >
                     <p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{message.content}</p>

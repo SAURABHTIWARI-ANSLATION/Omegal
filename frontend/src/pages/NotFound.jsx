@@ -11,11 +11,11 @@ export default function NotFound() {
         exit={{ opacity: 0, y: -16 }}
         className="mx-auto flex min-h-screen max-w-3xl items-center px-4 pt-24 pb-10 text-center"
       >
-        <div className="surface-panel w-full rounded-[2rem] p-6">
+        <div className="studio-card w-full p-8">
           <p className="text-sm font-semibold text-[#0071e3]">404</p>
-          <h1 className="mt-4 text-4xl font-semibold tracking-[-0.03em] text-[#1d1d1f]">Room not found.</h1>
-          <p className="mt-4 text-[#6e6e73]">The page you requested does not exist.</p>
-          <Link className="apple-primary-cta mt-8" to="/">
+          <h1 className="mt-4 text-4xl font-semibold tracking-[-0.04em] text-[#111115]">Room not found.</h1>
+          <p className="mt-4 text-[#62626c]">The page you requested does not exist.</p>
+          <Link className="studio-cta-primary mt-8" to="/">
             Back home
           </Link>
         </div>

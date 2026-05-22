@@ -39,7 +39,7 @@ export default function MessageComposer({ compact = false, disabled }) {
           maxLength={1000}
           placeholder={disabled ? "Connect with a partner to chat" : "Write a message"}
           className={cn(
-            "min-w-0 flex-1 resize-none overflow-y-auto bg-transparent text-sm text-[#1d1d1f] outline-none placeholder:text-[#86868b] disabled:cursor-not-allowed",
+            "min-w-0 flex-1 resize-none overflow-y-auto bg-transparent text-sm text-[#111115] outline-none placeholder:text-[#8a8a95] disabled:cursor-not-allowed",
             compact ? "h-9 px-2.5 py-1.5 sm:h-10 sm:py-2" : "h-11 px-3 py-2.5"
           )}
         />

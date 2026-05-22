@@ -27,7 +27,7 @@ export default function SearchPanel() {
             OmegleX is preparing a private room, checking live sockets, and keeping the session ready for a clean connection.
           </p>
 
-          <div className="mt-9 grid gap-3 sm:grid-cols-4">
+          <div className="mt-9 grid grid-cols-2 gap-3 sm:grid-cols-4">
             {scanSteps.map((label, index) => (
               <motion.div
                 key={label}

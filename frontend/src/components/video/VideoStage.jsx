@@ -52,7 +52,7 @@ export default function VideoStage() {
     <section
       ref={stageRef}
       className={cn(
-        "video-stage-panel relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-none border-0 bg-[#f5f5f7] text-[#1d1d1f]",
+        "video-stage-panel relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-none border-0 bg-[#f7f5ef] text-[#111115]",
         isFullscreen && "h-screen w-screen"
       )}
     >
@@ -62,7 +62,7 @@ export default function VideoStage() {
             <Sparkles className="h-3.5 w-3.5" />
             Private room
           </p>
-          <h2 className="video-stage-title mt-2 hidden truncate text-2xl font-semibold tracking-[-0.04em] text-[#1d1d1f] sm:block">Video conversation</h2>
+          <h2 className="video-stage-title mt-2 hidden truncate text-2xl font-semibold tracking-[-0.04em] text-[#111115] sm:block">Video conversation</h2>
         </div>
         <div className="pointer-events-auto flex min-w-0 shrink-0 items-center justify-end gap-1.5 sm:gap-2">
           <Badge variant="dark" className="hidden max-w-[10rem] sm:inline-flex lg:max-w-full">
@@ -82,7 +82,7 @@ export default function VideoStage() {
       </div>
 
       {isImmersive ? (
-        <div className="relative min-h-0 flex-1 overflow-hidden bg-[#e8e8ed]">
+        <div className="relative min-h-0 flex-1 overflow-hidden bg-[#eef1f7]">
           <VideoTile stream={remoteStream} label="Stranger" className="absolute inset-3 h-auto w-auto rounded-[20px] sm:inset-4" />
           <VideoTile stream={localStream} label="You" muted local fit="contain" className={localPreviewClass} />
           <div className="pointer-events-none absolute inset-x-3 bottom-4 z-30 flex justify-center sm:bottom-6">

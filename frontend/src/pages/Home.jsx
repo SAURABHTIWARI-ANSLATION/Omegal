@@ -179,10 +179,17 @@ function SectionIntro({ eyebrow, title, body, icon, align = "center" }) {
   );
 }
 
-function StudioImage({ src, alt = "", className = "", children }) {
+function StudioImage({ src, alt = "", className = "", loading = "eager", fetchPriority, children }) {
   return (
     <div className={`studio-art-card ${className}`}>
-      <img src={src} alt={alt} aria-hidden={alt ? undefined : "true"} loading="lazy" className="h-full w-full object-cover" />
+      <img
+        src={src}
+        alt={alt}
+        aria-hidden={alt ? undefined : "true"}
+        loading={loading}
+        fetchPriority={fetchPriority}
+        className="h-full w-full object-cover"
+      />
       <div className="studio-art-sheen" aria-hidden="true" />
       {children}
     </div>
@@ -191,9 +198,14 @@ function StudioImage({ src, alt = "", className = "", children }) {
 
 function HeroVisual({ signalLabel }) {
   return (
-    <motion.div variants={fadeUp} className="relative min-h-[34rem] lg:min-h-[44rem]">
+    <motion.div variants={fadeUp} className="relative min-h-[31rem] lg:min-h-[38rem]">
       <div className="studio-orbit" aria-hidden="true" />
-      <StudioImage src={heroStudio} className="absolute inset-x-0 top-8 mx-auto h-[29rem] max-w-[42rem] rounded-[2.5rem] lg:h-[38rem]">
+      <StudioImage
+        src={heroStudio}
+        loading="eager"
+        fetchPriority="high"
+        className="absolute inset-x-0 top-6 mx-auto h-[28rem] max-w-[42rem] rounded-[2.5rem] lg:h-[33rem]"
+      >
         <div className="absolute left-5 top-5 rounded-full border border-white/70 bg-white/70 px-4 py-2 text-xs font-semibold text-[#111115] shadow-[0_18px_45px_rgba(0,0,0,0.12)] backdrop-blur-2xl">
           Live room preview
         </div>
@@ -222,7 +234,7 @@ function HeroVisual({ signalLabel }) {
       <motion.div
         animate={{ y: [0, 12, 0], rotate: [1, -1, 1] }}
         transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-        className="studio-floating-card bottom-12 right-0 hidden w-64 lg:block"
+        className="studio-floating-card bottom-6 right-0 hidden w-64 lg:block"
       >
         <div className="flex items-center gap-3">
           <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#0071e3] text-white">
@@ -293,7 +305,7 @@ function StepRow({ step, index }) {
       </motion.div>
       <motion.div variants={fadeUp} className={reverse ? "lg:order-1" : ""}>
         <div className="studio-flow-panel">
-          <img src={flowStudio} alt="" aria-hidden="true" loading="lazy" className="h-full w-full rounded-[2rem] object-cover" />
+          <img src={flowStudio} alt="" aria-hidden="true" loading="eager" className="h-full w-full rounded-[2rem] object-cover" />
           <div className="absolute inset-0 bg-gradient-to-br from-white/0 via-white/10 to-white/55" />
           <div className="absolute bottom-5 left-5 rounded-3xl border border-white/70 bg-white/75 px-4 py-3 shadow-[0_16px_38px_rgba(0,0,0,0.12)] backdrop-blur-2xl">
             <p className="text-sm font-semibold text-[#111115]">Flow node {step.number}</p>
@@ -359,21 +371,21 @@ export default function Home() {
     <AppShell>
       <AmbientOrbs />
       <main className="studio-page relative overflow-hidden">
-        <section className="studio-hero relative overflow-hidden px-4 pb-20 pt-28 sm:px-6 lg:pt-32">
+        <section className="studio-hero relative overflow-hidden px-4 pb-16 pt-24 sm:px-6 lg:pb-10 lg:pt-24">
           <motion.div variants={stagger} initial="hidden" animate="show" className="studio-container relative z-10 grid items-center gap-12 lg:grid-cols-[0.92fr_1.08fr]">
             <div className="relative">
               <motion.div variants={fadeUp}>
                 <Eyebrow>OmegleX signal studio</Eyebrow>
               </motion.div>
-              <motion.h1 variants={fadeUp} className="mt-7 max-w-3xl text-6xl font-semibold leading-[0.84] tracking-[-0.075em] text-[#111115] sm:text-7xl lg:text-[6.8rem]">
+              <motion.h1 variants={fadeUp} className="mt-7 max-w-3xl text-6xl font-semibold leading-[0.86] tracking-[-0.075em] text-[#111115] sm:text-7xl lg:text-[5.85rem] xl:text-[6.4rem]">
                 Random chat,
                 <br />
                 rebuilt as a <GradientWord>living room.</GradientWord>
               </motion.h1>
-              <motion.p variants={fadeUp} className="mt-7 max-w-2xl text-xl leading-8 text-[#62626c] sm:text-2xl sm:leading-10">
+              <motion.p variants={fadeUp} className="mt-6 max-w-2xl text-xl leading-8 text-[#62626c] sm:text-xl sm:leading-9">
                 Random video and text conversations redesigned as a calm, private, real-time social experience.
               </motion.p>
-              <motion.div variants={fadeUp} className="mt-9 flex flex-col gap-3 sm:flex-row sm:items-center">
+              <motion.div variants={fadeUp} className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
                 <CTAButton icon={Video} onClick={() => begin(CHAT_MODES.VIDEO)} disabled={isStarting}>
                   {startingMode === CHAT_MODES.VIDEO ? "Opening room..." : "Start video room"}
                 </CTAButton>
@@ -381,7 +393,7 @@ export default function Home() {
                   {startingMode === CHAT_MODES.TEXT ? "Opening text..." : "Start text room"}
                 </CTAButton>
               </motion.div>
-              <motion.div variants={fadeUp} className="mt-10 grid max-w-2xl grid-cols-3 gap-3">
+              <motion.div variants={fadeUp} className="mt-8 grid max-w-2xl grid-cols-3 gap-3">
                 {[
                   ["Private", "signaling"],
                   ["Clean", "queue"],
@@ -413,7 +425,7 @@ export default function Home() {
                 icon={Sparkles}
               />
               <motion.div variants={fadeUp} initial="hidden" whileInView="show" viewport={{ once: true, margin: "-120px" }} className="studio-wide-art">
-                <img src={featuresStudio} alt="" aria-hidden="true" loading="lazy" className="h-full w-full object-cover" />
+                <img src={featuresStudio} alt="" aria-hidden="true" loading="eager" className="h-full w-full object-cover" />
                 <div className="absolute inset-0 bg-gradient-to-t from-white/75 via-white/0 to-white/5" />
                 <div className="absolute bottom-5 left-5 right-5 flex flex-wrap gap-2">
                   {["Queue", "WebRTC", "Safety", "Next"].map((item) => (
@@ -492,7 +504,7 @@ export default function Home() {
         <section className="studio-section bg-[#eef4ff]">
           <div className="studio-container grid items-center gap-12 lg:grid-cols-[1.08fr_0.92fr]">
             <motion.div variants={fadeUp} initial="hidden" whileInView="show" viewport={{ once: true, margin: "-120px" }} className="studio-chat-showcase">
-              <img src={chatUiStudio} alt="" aria-hidden="true" loading="lazy" className="h-full w-full object-cover" />
+              <img src={chatUiStudio} alt="" aria-hidden="true" loading="eager" className="h-full w-full object-cover" />
               <div className="absolute inset-0 bg-gradient-to-tr from-white/80 via-white/5 to-transparent" />
               <div className="absolute bottom-5 left-5 right-5 grid gap-3 sm:grid-cols-3">
                 {[
@@ -545,10 +557,22 @@ export default function Home() {
               viewport={{ once: true, margin: "-120px" }}
               className="mt-12 grid gap-4 md:grid-cols-3"
             >
-              {reactions.map(([title, body]) => (
-                <motion.div key={title} variants={fadeUp} className="studio-card p-6">
+              {reactions.map(([title, body], index) => (
+                <motion.div key={title} variants={fadeUp} className="studio-card relative p-6">
+                  <div className="absolute right-5 top-5 flex -space-x-2" aria-hidden="true">
+                    {[0, 1, 2].map((offset) => (
+                      <span
+                        key={offset}
+                        className="h-8 w-8 rounded-full border-2 border-white shadow-sm"
+                        style={{
+                          background: `linear-gradient(135deg, ${["#0071e3", "#af52de", "#34c759", "#ff9f0a", "#ff375f"][index + offset]}, #ffffff)`,
+                        }}
+                      />
+                    ))}
+                  </div>
                   <p className="text-2xl font-semibold tracking-[-0.04em] text-[#111115]">{title}</p>
                   <p className="mt-4 leading-7 text-[#62626c]">{body}</p>
+                  <p className="mt-8 text-xs font-semibold uppercase tracking-[0.18em] text-[#8a8a95]">User reaction</p>
                 </motion.div>
               ))}
             </motion.div>
@@ -599,7 +623,11 @@ export default function Home() {
                   <CTAButton secondary icon={MessageSquareText} onClick={() => begin(CHAT_MODES.TEXT)} disabled={isStarting}>Start text</CTAButton>
                 </div>
               </div>
-              <img src={heroStudio} alt="" aria-hidden="true" loading="lazy" className="absolute -right-24 bottom-0 hidden h-[24rem] w-[34rem] rotate-[-8deg] rounded-[2rem] object-cover opacity-80 shadow-[0_34px_80px_rgba(0,0,0,0.18)] lg:block" />
+              <div
+                aria-hidden="true"
+                className="absolute -right-24 bottom-0 hidden h-[24rem] w-[34rem] rotate-[-8deg] rounded-[2rem] bg-cover bg-center opacity-80 shadow-[0_34px_80px_rgba(0,0,0,0.18)] lg:block"
+                style={{ backgroundImage: `url(${heroStudio})` }}
+              />
             </div>
           </div>
         </section>
