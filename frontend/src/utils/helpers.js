@@ -81,6 +81,8 @@ export function stopStream(stream) {
       stream.__omegalCleanup();
     } finally {
       stream.__omegalCleanup = null;
+      stream.__omegalResumeAudio = null;
+      stream.__omegalAudioSourceTracks = [];
     }
   }
 

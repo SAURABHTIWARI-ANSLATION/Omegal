@@ -6,6 +6,7 @@ let queuedIceCandidates = [];
 const MAX_QUEUED_ICE_CANDIDATES = 80;
 const STREAM_CLEANUP_KEY = "__omegalCleanup";
 const AUDIO_SOURCE_TRACKS_KEY = "__omegalAudioSourceTracks";
+const AUDIO_RESUME_KEY = "__omegalResumeAudio";
 
 const speechAudioConstraints = {
   echoCancellation: { ideal: true },
@@ -15,6 +16,37 @@ const speechAudioConstraints = {
   sampleRate: { ideal: 48000 },
   sampleSize: { ideal: 16 },
   latency: { ideal: 0.02 },
+  advanced: [
+    {
+      echoCancellation: true,
+      noiseSuppression: true,
+      autoGainControl: false,
+    },
+    {
+      googEchoCancellation: true,
+      googNoiseSuppression: true,
+      googHighpassFilter: true,
+      googAutoGainControl: false,
+    },
+  ],
+};
+
+const fallbackAudioConstraints = {
+  echoCancellation: true,
+  noiseSuppression: true,
+  autoGainControl: false,
+  channelCount: 1,
+};
+
+const preferredVideoConstraints = {
+  width: { ideal: 960, max: 1280 },
+  height: { ideal: 540, max: 720 },
+  frameRate: { ideal: 24, max: 30 },
+  facingMode: { ideal: "user" },
+};
+
+const fallbackVideoConstraints = {
+  facingMode: { ideal: "user" },
 };
 
 function isClosed(pc) {
@@ -91,6 +123,8 @@ export function closePeerConnection() {
 export function addLocalTracks(pc, stream) {
   if (isClosed(pc) || !stream) return;
 
+  resumeManagedAudioProcessing(stream);
+
   const existingTrackIds = new Set(pc.getSenders().map((sender) => sender.track?.id).filter(Boolean));
   stream.getTracks().forEach((track) => {
     if (track.readyState !== "ended" && !existingTrackIds.has(track.id)) {
@@ -101,6 +135,8 @@ export function addLocalTracks(pc, stream) {
 
 export function setManagedAudioEnabled(stream, enabled) {
   if (!stream) return;
+
+  if (enabled) resumeManagedAudioProcessing(stream);
 
   const audioTracks = [
     ...stream.getAudioTracks(),
@@ -113,6 +149,11 @@ export function setManagedAudioEnabled(stream, enabled) {
     seenTrackIds.add(track.id);
     track.enabled = enabled;
   });
+}
+
+export function resumeManagedAudioProcessing(stream) {
+  if (!stream || typeof stream[AUDIO_RESUME_KEY] !== "function") return;
+  stream[AUDIO_RESUME_KEY]();
 }
 
 async function applySpeechTrackSettings(track) {
@@ -131,7 +172,7 @@ async function applySpeechTrackSettings(track) {
   }
 }
 
-function attachStreamCleanup(stream, cleanup, audioSourceTracks = []) {
+function attachStreamLifecycle(stream, { cleanup, resume, audioSourceTracks = [] }) {
   try {
     Object.defineProperty(stream, STREAM_CLEANUP_KEY, {
       configurable: true,
@@ -143,9 +184,15 @@ function attachStreamCleanup(stream, cleanup, audioSourceTracks = []) {
       writable: true,
       value: audioSourceTracks,
     });
+    Object.defineProperty(stream, AUDIO_RESUME_KEY, {
+      configurable: true,
+      writable: true,
+      value: resume,
+    });
   } catch {
     stream[STREAM_CLEANUP_KEY] = cleanup;
     stream[AUDIO_SOURCE_TRACKS_KEY] = audioSourceTracks;
+    stream[AUDIO_RESUME_KEY] = resume;
   }
 }
 
@@ -158,11 +205,26 @@ async function createSpeechOptimizedStream(rawStream) {
   const AudioContextConstructor = window.AudioContext || window.webkitAudioContext;
   if (!AudioContextConstructor) return rawStream;
 
+  let audioContext = null;
+  const closeAudioContext = async () => {
+    if (!audioContext) return;
+    try {
+      await audioContext.close?.();
+    } catch {
+      // Some browsers throw when closing a suspended or already-closed context.
+    }
+  };
+
   try {
-    const audioContext = new AudioContextConstructor({
-      latencyHint: "interactive",
-      sampleRate: 48000,
-    });
+    try {
+      audioContext = new AudioContextConstructor({
+        latencyHint: "interactive",
+        sampleRate: 48000,
+      });
+    } catch {
+      audioContext = new AudioContextConstructor({ latencyHint: "interactive" });
+    }
+
     const source = audioContext.createMediaStreamSource(new MediaStream(audioTracks));
     const highPass = audioContext.createBiquadFilter();
     const lowPass = audioContext.createBiquadFilter();
@@ -188,9 +250,21 @@ async function createSpeechOptimizedStream(rawStream) {
     lowPass.connect(compressor);
     compressor.connect(destination);
 
-    await audioContext.resume?.().catch(() => {});
+    const resume = () => {
+      if (audioContext?.state === "suspended" && typeof audioContext.resume === "function") {
+        return audioContext.resume().catch(() => {});
+      }
+      return Promise.resolve();
+    };
+
+    await resume();
 
     const processedAudioTracks = destination.stream.getAudioTracks();
+    if (processedAudioTracks.length === 0) {
+      await closeAudioContext();
+      return rawStream;
+    }
+
     processedAudioTracks.forEach((track) => {
       try {
         track.contentHint = "speech";
@@ -204,15 +278,39 @@ async function createSpeechOptimizedStream(rawStream) {
       ...processedAudioTracks,
     ]);
 
-    attachStreamCleanup(enhancedStream, () => {
+    const cleanup = () => {
+      [source, highPass, lowPass, compressor].forEach((node) => {
+        try {
+          node.disconnect();
+        } catch {
+          // Disconnection is best-effort during stream teardown.
+        }
+      });
       audioTracks.forEach((track) => track.stop());
-      audioContext.close?.().catch(() => {});
-    }, audioTracks);
+      void closeAudioContext();
+    };
+
+    audioTracks.forEach((track) => {
+      track.addEventListener?.("ended", () => {
+        processedAudioTracks.forEach((processedTrack) => processedTrack.stop());
+      }, { once: true });
+    });
+
+    attachStreamLifecycle(enhancedStream, {
+      cleanup,
+      resume,
+      audioSourceTracks: audioTracks,
+    });
 
     return enhancedStream;
   } catch {
+    await closeAudioContext();
     return rawStream;
   }
+}
+
+function isPermissionDenied(error) {
+  return error?.name === "NotAllowedError" || error?.name === "PermissionDeniedError";
 }
 
 export async function requestMediaStream() {
@@ -220,30 +318,32 @@ export async function requestMediaStream() {
     throw new Error("This browser does not support camera and microphone access.");
   }
 
-  const preferredConstraints = {
-    audio: speechAudioConstraints,
-    video: {
-      width: { ideal: 960, max: 1280 },
-      height: { ideal: 540, max: 720 },
-      frameRate: { ideal: 24, max: 30 },
-      facingMode: { ideal: "user" },
+  const mediaAttempts = [
+    {
+      audio: speechAudioConstraints,
+      video: preferredVideoConstraints,
     },
-  };
+    {
+      audio: fallbackAudioConstraints,
+      video: fallbackVideoConstraints,
+    },
+    {
+      audio: true,
+      video: fallbackVideoConstraints,
+    },
+  ];
 
-  try {
-    return await createSpeechOptimizedStream(await navigator.mediaDevices.getUserMedia(preferredConstraints));
-  } catch (error) {
-    if (error?.name === "NotAllowedError" || error?.name === "PermissionDeniedError") throw error;
-
-    return createSpeechOptimizedStream(await navigator.mediaDevices.getUserMedia({
-      audio: {
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: false,
-      },
-      video: { facingMode: { ideal: "user" } },
-    }));
+  let lastError = null;
+  for (const constraints of mediaAttempts) {
+    try {
+      return await createSpeechOptimizedStream(await navigator.mediaDevices.getUserMedia(constraints));
+    } catch (error) {
+      if (isPermissionDenied(error)) throw error;
+      lastError = error;
+    }
   }
+
+  throw lastError || new Error("Unable to access your camera or microphone.");
 }
 
 export async function createOffer(pc) {
