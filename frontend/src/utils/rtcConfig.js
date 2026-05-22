@@ -1,4 +1,6 @@
-const turnUrls = (import.meta.env.VITE_TURN_URL || "")
+const env = import.meta.env || {};
+
+const turnUrls = (env.VITE_TURN_URL || "")
   .split(",")
   .map((url) => url.trim())
   .filter(Boolean);
@@ -7,8 +9,8 @@ const turnServer =
   turnUrls.length > 0
     ? {
         urls: turnUrls,
-        username: import.meta.env.VITE_TURN_USERNAME,
-        credential: import.meta.env.VITE_TURN_CREDENTIAL,
+        username: env.VITE_TURN_USERNAME,
+        credential: env.VITE_TURN_CREDENTIAL,
       }
     : null;
 

@@ -75,5 +75,16 @@ export function determineOfferer(socketId, partnerId) {
 
 export function stopStream(stream) {
   if (!stream) return;
+
+  if (typeof stream.__omegalCleanup === "function") {
+    try {
+      stream.__omegalCleanup();
+    } finally {
+      stream.__omegalCleanup = null;
+      stream.__omegalResumeAudio = null;
+      stream.__omegalAudioSourceTracks = [];
+    }
+  }
+
   stream.getTracks().forEach((track) => track.stop());
 }
