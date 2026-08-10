@@ -60,6 +60,13 @@ export function useWebRTC({ listen = false } = {}) {
     useAppStore.getState().setRemoteStream(null);
   }, []);
 
+  // Declare getSessionKey BEFORE publishRemoteTrack — publishRemoteTrack captures
+  // it in its dependency array and closure, so it must be initialized first.
+  const getSessionKey = useCallback((state) => {
+    if (!state.roomId || !state.partnerId) return null;
+    return `${state.roomId}:${state.partnerId}:${state.sessionVersion || 0}:${state.sessionGeneration || 1}`;
+  }, []);
+
   const publishRemoteTrack = useCallback((event, sessionKey) => {
     // Guard: reject tracks from previous sessions.
     if (sessionKey && getSessionKey(useAppStore.getState()) !== sessionKey) {
@@ -107,10 +114,7 @@ export function useWebRTC({ listen = false } = {}) {
     useAppStore.getState().setRemoteStream(remoteStream);
   }, [getSessionKey]);
 
-  const getSessionKey = useCallback((state) => {
-    if (!state.roomId || !state.partnerId) return null;
-    return `${state.roomId}:${state.partnerId}:${state.sessionVersion || 0}:${state.sessionGeneration || 1}`;
-  }, []);
+  // getSessionKey is now declared above publishRemoteTrack (moved to fix TDZ).
 
   const emitSignal = useCallback((event, data, sessionKey = null) => {
     const state = useAppStore.getState();
