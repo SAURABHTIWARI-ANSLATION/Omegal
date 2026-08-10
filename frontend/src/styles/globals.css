@@ -18,7 +18,7 @@ html {
 
 body {
   min-width: 320px;
-  min-height: 100vh;
+  min-height: 100dvh;
   margin: 0;
   overflow-x: hidden;
   background: #f7f5ef;
@@ -33,6 +33,8 @@ input {
 
 button {
   cursor: pointer;
+  /* Prevent double-tap zoom on touch controls */
+  touch-action: manipulation;
 }
 
 button:disabled {
@@ -193,9 +195,17 @@ button:disabled {
 }
 
 .chat-room-shell-text {
-  grid-template-columns: minmax(0, 1fr) minmax(22rem, 0.42fr);
+  grid-template-columns: 1fr;
+  max-width: 52rem;
+  margin-inline: auto;
   gap: 0.85rem;
   padding: 0.85rem;
+}
+
+/* Ultra-wide: prevent infinite video stretch */
+.chat-room-shell-video {
+  max-width: 3200px;
+  margin-inline: auto;
 }
 
 .chat-video-stage-shell,
@@ -348,7 +358,7 @@ button:disabled {
     position: relative;
     inset: auto;
     width: 100%;
-    min-height: 18rem;
+    min-height: 16rem;
     max-height: none;
   }
 }
@@ -438,6 +448,53 @@ button:disabled {
 
   .chat-empty-state {
     min-height: 8rem;
+  }
+}
+
+/* Extreme landscape: phones rotated (e.g. iPhone SE landscape = 568×320) */
+@media (max-width: 767px) and (max-height: 600px) {
+  .chat-room-shell-video {
+    grid-template-rows: minmax(13rem, 50dvh) minmax(11rem, 40dvh);
+    gap: 0.4rem;
+    padding: 0.4rem;
+  }
+
+  .chat-room-shell-text {
+    padding: 0.4rem;
+  }
+
+  .chat-video-stage-shell {
+    min-height: 13rem;
+    border-radius: 0.85rem;
+  }
+
+  .chat-facetime-panel {
+    min-height: 11rem;
+    border-radius: 0.85rem;
+  }
+
+  .chat-sidebar-panel {
+    border-radius: 0.85rem;
+  }
+
+  .chat-sidebar-header {
+    min-height: 2.9rem;
+  }
+
+  .local-video-pip {
+    max-height: 18dvh;
+    width: min(35vw, 8rem);
+    min-width: 5.5rem;
+  }
+
+  .media-controls-bar {
+    padding: 0.4rem 0.55rem;
+    gap: 0.35rem;
+  }
+
+  .media-controls-bar .media-control-button {
+    width: 2.25rem;
+    height: 2.25rem;
   }
 }
 
@@ -606,7 +663,7 @@ button:disabled {
   display: grid;
   margin-top: 2.25rem;
   color: #121217;
-  font-size: 7rem;
+  font-size: clamp(3rem, 7vw, 7rem);
   font-weight: 950;
   line-height: 0.9;
   letter-spacing: 0;
@@ -621,7 +678,6 @@ button:disabled {
 }
 
 .ox-hero-title .vibe {
-  width: max-content;
   max-width: 100%;
   background: linear-gradient(135deg, #dac7ff 0%, #8f7cff 56%, #6ed0ff 100%);
   -webkit-background-clip: text;
@@ -1150,7 +1206,7 @@ button:disabled {
 
 .ox-final-card h2 {
   margin: 1.25rem 0 0;
-  font-size: 5rem;
+  font-size: clamp(2.5rem, 5vw, 5rem);
   line-height: 0.95;
   font-weight: 950;
 }
@@ -1539,6 +1595,37 @@ button:disabled {
     display: grid;
     align-items: start;
     padding: 2rem;
+  }
+}
+
+/* Intermediate tablet: collapse 3-col grids earlier */
+@media (max-width: 820px) {
+  .ox-proof-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ox-feature-grid {
+    grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  }
+
+  .ox-reaction-grid {
+    grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  }
+
+  .ox-showcase-shell {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "intro"
+      "art"
+      "cards";
+  }
+
+  .ox-showcase-art {
+    min-height: 22rem;
+  }
+
+  .ox-how-shell {
+    grid-template-columns: 1fr;
   }
 }
 

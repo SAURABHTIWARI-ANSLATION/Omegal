@@ -37,7 +37,7 @@ export default function MediaControls({ compact = false, className }) {
       <Button
         type="button"
         variant={partnerDisconnected ? "success" : "subtle"}
-        className={cn("min-w-0 px-4", compact ? "h-11 max-w-[9rem] flex-1 sm:flex-none sm:min-w-[9rem]" : "min-w-[7.5rem] sm:min-w-[9rem]")}
+        className={cn("min-w-0 px-4", compact ? "h-11 max-w-[9rem] flex-1 sm:flex-none sm:min-w-[9rem]" : "min-w-[6.5rem] sm:min-w-[9rem]")}
         onClick={nextPartner}
         disabled={nextDisabled}
       >

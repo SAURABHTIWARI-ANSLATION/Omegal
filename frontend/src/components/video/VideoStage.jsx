@@ -65,17 +65,17 @@ export default function VideoStage({ className }) {
           </p>
           <h2 className="video-stage-title mt-2 hidden truncate text-2xl font-semibold tracking-[-0.04em] text-[#111115] sm:block">Video conversation</h2>
         </div>
-        <div className="pointer-events-auto flex min-w-0 shrink-0 items-center justify-end gap-1.5 sm:gap-2">
+        <div className="pointer-events-auto flex min-w-0 shrink-0 items-center justify-end gap-1 sm:gap-2">
           <Badge variant="dark" className="hidden max-w-[10rem] sm:inline-flex lg:max-w-full">
             {isConnected ? <SignalHigh className="h-3.5 w-3.5 text-[#34c759]" /> : <Radio className="h-3.5 w-3.5 text-[#0071e3]" />}
             <span className="truncate">WebRTC {rtcConnectionState}</span>
           </Badge>
           <span className={cn("h-2.5 w-2.5 rounded-full sm:hidden", isConnected ? "bg-[#34c759]" : "bg-[#0071e3]")} aria-label={`WebRTC ${rtcConnectionState}`} />
-          <Button type="button" variant="subtle" size="sm" className="h-9 px-2.5 sm:h-9 sm:px-3" onClick={() => setIsCinemaLayout((value) => !value)}>
+          <Button type="button" variant="subtle" size="sm" className="h-9 px-2.5 sm:h-9 sm:px-3" aria-label={isCinemaLayout ? "Switch to split layout" : "Switch to cinema layout"} onClick={() => setIsCinemaLayout((value) => !value)}>
             {isCinemaLayout ? <Columns2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
             <span className="hidden sm:inline">{isCinemaLayout ? "Split" : "Maximize"}</span>
           </Button>
-          <Button type="button" variant="subtle" size="sm" className="h-9 px-2.5 sm:h-9 sm:px-3" onClick={toggleFullscreen}>
+          <Button type="button" variant="subtle" size="sm" className="h-9 px-2.5 sm:h-9 sm:px-3" aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"} onClick={toggleFullscreen}>
             {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
             <span className="hidden sm:inline">{isFullscreen ? "Exit full" : "Full screen"}</span>
           </Button>
@@ -92,7 +92,7 @@ export default function VideoStage({ className }) {
         </div>
       ) : (
         <>
-          <div className="video-tile-grid grid min-h-0 flex-1 grid-cols-1 grid-rows-2 gap-2 p-2 pb-24 pt-20 sm:gap-3 sm:p-4 sm:pb-28 sm:pt-28 xl:grid-cols-2 xl:grid-rows-1">
+          <div className="video-tile-grid grid min-h-0 flex-1 grid-cols-1 grid-rows-2 gap-2 p-2 pb-20 pt-16 sm:gap-3 sm:p-4 sm:pb-24 sm:pt-24 xl:grid-cols-2 xl:grid-rows-1">
             <VideoTile stream={remoteStream} label="Stranger" className="h-full min-h-0 rounded-[1.6rem] sm:rounded-[2rem]" />
             <VideoTile stream={localStream} label="You" muted local className="h-full min-h-0 rounded-[1.6rem] sm:rounded-[2rem]" />
           </div>

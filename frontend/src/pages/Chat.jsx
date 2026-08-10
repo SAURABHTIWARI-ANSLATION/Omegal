@@ -43,7 +43,7 @@ function IdleChat() {
             </Button>
           </div>
         </div>
-        <div className="relative mt-6 min-h-[22rem] overflow-hidden rounded-[2rem] bg-[#eef4ff] lg:mt-0">
+        <div className="relative mt-6 min-h-[18rem] overflow-hidden rounded-[2rem] bg-[#eef4ff] lg:mt-0 lg:min-h-[22rem]">
           <img src={chatUiStudio} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-t from-white/75 via-white/0 to-white/20" />
           <div className="absolute bottom-4 left-4 right-4 grid gap-2 sm:grid-cols-3">
@@ -117,7 +117,7 @@ export default function Chat() {
               <AlertTriangle className="h-3.5 w-3.5" />
               Setup failed
             </Badge>
-            <h1 className="mt-5 text-4xl font-semibold tracking-[-0.03em] text-[#1d1d1f]">Could not start the session.</h1>
+            <h1 className="mt-5 text-3xl font-semibold tracking-[-0.03em] text-[#1d1d1f] sm:text-4xl">Could not start the session.</h1>
             <p className="mt-4 text-[#6e6e73]">{lastError}</p>
           </div>
         </section>
@@ -154,7 +154,6 @@ export default function Chat() {
             </>
           ) : (
             <>
-              <TextRoomPanel />
               <ChatSidebar className="min-h-0" />
             </>
           )}

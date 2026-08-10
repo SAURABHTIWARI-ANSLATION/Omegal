@@ -14,13 +14,13 @@ export default function AppShell({ children }) {
             <span className="studio-brand-name text-sm font-semibold tracking-[-0.02em] text-[#111115]">OmegleX</span>
           </Link>
 
-          <div className="studio-nav-actions flex min-w-0 items-center gap-1.5 sm:gap-2">
+          <div className="studio-nav-actions flex min-w-0 shrink items-center gap-1.5 sm:gap-2">
             <div className="liquid-pill hidden items-center gap-2 px-3 py-1.5 text-xs font-semibold text-[#62626c] md:flex">
               <ShieldCheck className="h-3.5 w-3.5 text-[#0071e3]" />
               Private signaling
             </div>
             <ConnectionStatus />
-            <Link to="/chat" className="studio-nav-cta">
+            <Link to="/chat" className="studio-nav-cta shrink-0">
               Start Chat
             </Link>
           </div>

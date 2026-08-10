@@ -56,7 +56,10 @@ export default function ToastViewport() {
   const toasts = useAppStore((state) => state.toasts);
 
   return (
-    <div className="pointer-events-none fixed right-4 bottom-4 z-50 flex w-[calc(100vw-2rem)] max-w-sm flex-col gap-3 sm:right-6 sm:bottom-6">
+    <div
+      className="pointer-events-none fixed right-4 z-50 flex w-[calc(100vw-2rem)] max-w-sm flex-col gap-3 sm:right-6"
+      style={{ bottom: "max(1rem, env(safe-area-inset-bottom, 1rem))" }}
+    >
       <AnimatePresence initial={false}>
         {toasts.map((toast) => (
           <ToastItem key={toast.id} toast={toast} />

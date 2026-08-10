@@ -140,8 +140,8 @@ export default function VideoTile({ stream, label, muted = false, local = false,
           <img src={chatUiStudio} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover opacity-45 blur-[1px]" />
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_42%,rgba(0,113,227,0.18),transparent_30%),radial-gradient(circle_at_68%_62%,rgba(255,55,95,0.10),transparent_34%),linear-gradient(180deg,rgba(255,255,255,0.50),rgba(255,255,255,0.82))]" />
           {local ? (
-            <span className="relative flex h-14 w-14 items-center justify-center rounded-2xl border border-white/90 bg-white/[0.72] shadow-[0_8px_32px_rgba(0,113,227,0.10)] backdrop-blur-2xl">
-              <Camera className="h-7 w-7" />
+            <span className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-white/90 bg-white/[0.72] shadow-[0_8px_32px_rgba(0,113,227,0.10)] backdrop-blur-2xl">
+              <Camera className="h-5 w-5" />
             </span>
           ) : (
             <span className="relative flex h-20 w-20 items-center justify-center rounded-[1.75rem] border border-white/90 bg-white/78 shadow-[0_18px_45px_rgba(0,113,227,0.18)] backdrop-blur-2xl">

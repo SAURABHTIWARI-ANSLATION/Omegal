@@ -22,7 +22,7 @@ export default function SearchPanel() {
             {isVideo ? <Video className="h-4 w-4 text-[#0071e3]" /> : <MessageSquareText className="h-4 w-4 text-[#0071e3]" />}
             {isVideo ? "Video queue" : "Text queue"}
           </span>
-          <h1 className="mt-7 max-w-4xl text-5xl font-semibold leading-[0.9] tracking-[-0.06em] text-[#111115] sm:text-7xl lg:text-8xl">{headline}</h1>
+          <h1 className="mt-7 max-w-4xl text-[clamp(2rem,8vw,3rem)] font-semibold leading-[0.9] tracking-[-0.06em] text-[#111115] sm:text-7xl lg:text-8xl">{headline}</h1>
           <p className="mt-7 max-w-2xl text-lg leading-8 text-[#62626c] sm:text-xl">
             OmegleX is preparing a private room, checking live sockets, and keeping the session ready for a clean connection.
           </p>
@@ -43,7 +43,7 @@ export default function SearchPanel() {
         </motion.div>
 
         <motion.aside initial={{ opacity: 0, y: 28 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 0.12, ease: [0.16, 1, 0.3, 1] }} className="studio-card relative overflow-hidden p-4 sm:p-5">
-          <div className="relative aspect-[4/5] overflow-hidden rounded-[2rem] bg-[#eef4ff] shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] sm:aspect-square">
+          <div className="relative aspect-square max-h-[360px] overflow-hidden rounded-[2rem] bg-[#eef4ff] shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] sm:max-h-none">
             <img src={chatUiStudio} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover" />
             <div className="absolute inset-0 bg-gradient-to-br from-white/35 via-white/0 to-white/82" />
             <motion.div className="absolute left-1/2 top-1/2 h-[86%] w-[86%] -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/55" animate={{ scale: [0.95, 1.05, 0.95] }} transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }} />
