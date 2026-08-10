@@ -1,7 +1,6 @@
 import { rtcConfig } from "../utils/rtcConfig.js";
 
 let peerConnection = null;
-let queuedIceCandidates = [];
 
 const MAX_QUEUED_ICE_CANDIDATES = 80;
 const STREAM_CLEANUP_KEY = "__omegalCleanup";
@@ -11,31 +10,13 @@ const AUDIO_RESUME_KEY = "__omegalResumeAudio";
 const speechAudioConstraints = {
   echoCancellation: { ideal: true },
   noiseSuppression: { ideal: true },
-  autoGainControl: { ideal: false },
-  channelCount: { ideal: 1 },
-  sampleRate: { ideal: 48000 },
-  sampleSize: { ideal: 16 },
-  latency: { ideal: 0.02 },
-  advanced: [
-    {
-      echoCancellation: true,
-      noiseSuppression: true,
-      autoGainControl: false,
-    },
-    {
-      googEchoCancellation: true,
-      googNoiseSuppression: true,
-      googHighpassFilter: true,
-      googAutoGainControl: false,
-    },
-  ],
+  autoGainControl: { ideal: true },
 };
 
 const fallbackAudioConstraints = {
   echoCancellation: true,
   noiseSuppression: true,
-  autoGainControl: false,
-  channelCount: 1,
+  autoGainControl: true,
 };
 
 const preferredVideoConstraints = {
@@ -48,6 +29,33 @@ const preferredVideoConstraints = {
 const fallbackVideoConstraints = {
   facingMode: { ideal: "user" },
 };
+
+export function optimizeAudioSdp(sdp) {
+  if (!sdp || typeof sdp !== "string") return sdp;
+
+  // Enforce Opus parameters: in-band Forward Error Correction (useinbandfec=1)
+  // and disable discontinuous transmission (usedtx=0) to prevent speech cut-offs.
+  return sdp.replace(/a=fmtp:(\d+)\s+([^\r\n]+)/g, (match, pt, params) => {
+    if (params.includes("opus") || sdp.includes(`a=rtpmap:${pt} opus/48000`)) {
+      let updatedParams = params;
+      if (!updatedParams.includes("useinbandfec=")) {
+        updatedParams += ";useinbandfec=1";
+      } else {
+        updatedParams = updatedParams.replace(/useinbandfec=\d/, "useinbandfec=1");
+      }
+      if (!updatedParams.includes("usedtx=")) {
+        updatedParams += ";usedtx=0";
+      } else {
+        updatedParams = updatedParams.replace(/usedtx=\d/, "usedtx=0");
+      }
+      if (!updatedParams.includes("maxaveragebitrate=")) {
+        updatedParams += ";maxaveragebitrate=128000";
+      }
+      return `a=fmtp:${pt} ${updatedParams}`;
+    }
+    return match;
+  });
+}
 
 function isClosed(pc) {
   return !pc || pc.signalingState === "closed" || pc.connectionState === "closed";
@@ -65,7 +73,15 @@ export function createManagedPeerConnection(handlers = {}) {
   closePeerConnection();
 
   const pc = new RTCPeerConnection(rtcConfig);
+  pc._queuedCandidates = [];
   peerConnection = pc;
+
+  try {
+    pc.addTransceiver("audio", { direction: "sendrecv" });
+    pc.addTransceiver("video", { direction: "sendrecv" });
+  } catch {
+    // Best-effort transceiver initialization
+  }
 
   pc.onicecandidate = (event) => {
     if (isActive(pc) && event.candidate) handlers.onIceCandidate?.(event.candidate);
@@ -93,8 +109,10 @@ export function closePeerConnection() {
   const pc = peerConnection;
   if (!pc) return;
 
-  queuedIceCandidates = [];
   peerConnection = null;
+  if (pc._queuedCandidates) {
+    pc._queuedCandidates = [];
+  }
 
   pc.onicecandidate = null;
   pc.onicecandidateerror = null;
@@ -164,149 +182,35 @@ async function applySpeechTrackSettings(track) {
   } catch {
     // contentHint is best-effort and not supported everywhere.
   }
-
-  try {
-    await track.applyConstraints?.(speechAudioConstraints);
-  } catch {
-    // Some mobile browsers expose limited audio constraints; keep the stream alive.
-  }
 }
 
-function attachStreamLifecycle(stream, { cleanup, resume, audioSourceTracks = [] }) {
+function attachStreamLifecycle(stream, { cleanup }) {
   try {
     Object.defineProperty(stream, STREAM_CLEANUP_KEY, {
       configurable: true,
       writable: true,
       value: cleanup,
     });
-    Object.defineProperty(stream, AUDIO_SOURCE_TRACKS_KEY, {
-      configurable: true,
-      writable: true,
-      value: audioSourceTracks,
-    });
-    Object.defineProperty(stream, AUDIO_RESUME_KEY, {
-      configurable: true,
-      writable: true,
-      value: resume,
-    });
   } catch {
     stream[STREAM_CLEANUP_KEY] = cleanup;
-    stream[AUDIO_SOURCE_TRACKS_KEY] = audioSourceTracks;
-    stream[AUDIO_RESUME_KEY] = resume;
   }
 }
 
-async function createSpeechOptimizedStream(rawStream) {
+function createSpeechOptimizedStream(rawStream) {
+  if (!rawStream) return rawStream;
+
   const audioTracks = rawStream.getAudioTracks();
-  if (audioTracks.length === 0 || typeof window === "undefined") return rawStream;
+  if (audioTracks.length > 0) {
+    audioTracks.forEach(applySpeechTrackSettings);
+  }
 
-  await Promise.all(audioTracks.map(applySpeechTrackSettings));
-
-  const AudioContextConstructor = window.AudioContext || window.webkitAudioContext;
-  if (!AudioContextConstructor) return rawStream;
-
-  let audioContext = null;
-  const closeAudioContext = async () => {
-    if (!audioContext) return;
-    try {
-      await audioContext.close?.();
-    } catch {
-      // Some browsers throw when closing a suspended or already-closed context.
-    }
+  const cleanup = () => {
+    rawStream.getTracks().forEach((track) => track.stop());
   };
 
-  try {
-    try {
-      audioContext = new AudioContextConstructor({
-        latencyHint: "interactive",
-        sampleRate: 48000,
-      });
-    } catch {
-      audioContext = new AudioContextConstructor({ latencyHint: "interactive" });
-    }
+  attachStreamLifecycle(rawStream, { cleanup });
 
-    const source = audioContext.createMediaStreamSource(new MediaStream(audioTracks));
-    const highPass = audioContext.createBiquadFilter();
-    const lowPass = audioContext.createBiquadFilter();
-    const compressor = audioContext.createDynamicsCompressor();
-    const destination = audioContext.createMediaStreamDestination();
-
-    highPass.type = "highpass";
-    highPass.frequency.value = 120;
-    highPass.Q.value = 0.7;
-
-    lowPass.type = "lowpass";
-    lowPass.frequency.value = 7800;
-    lowPass.Q.value = 0.7;
-
-    compressor.threshold.value = -42;
-    compressor.knee.value = 18;
-    compressor.ratio.value = 5;
-    compressor.attack.value = 0.003;
-    compressor.release.value = 0.18;
-
-    source.connect(highPass);
-    highPass.connect(lowPass);
-    lowPass.connect(compressor);
-    compressor.connect(destination);
-
-    const resume = () => {
-      if (audioContext?.state === "suspended" && typeof audioContext.resume === "function") {
-        return audioContext.resume().catch(() => {});
-      }
-      return Promise.resolve();
-    };
-
-    await resume();
-
-    const processedAudioTracks = destination.stream.getAudioTracks();
-    if (processedAudioTracks.length === 0) {
-      await closeAudioContext();
-      return rawStream;
-    }
-
-    processedAudioTracks.forEach((track) => {
-      try {
-        track.contentHint = "speech";
-      } catch {
-        // contentHint is best-effort.
-      }
-    });
-
-    const enhancedStream = new MediaStream([
-      ...rawStream.getVideoTracks(),
-      ...processedAudioTracks,
-    ]);
-
-    const cleanup = () => {
-      [source, highPass, lowPass, compressor].forEach((node) => {
-        try {
-          node.disconnect();
-        } catch {
-          // Disconnection is best-effort during stream teardown.
-        }
-      });
-      audioTracks.forEach((track) => track.stop());
-      void closeAudioContext();
-    };
-
-    audioTracks.forEach((track) => {
-      track.addEventListener?.("ended", () => {
-        processedAudioTracks.forEach((processedTrack) => processedTrack.stop());
-      }, { once: true });
-    });
-
-    attachStreamLifecycle(enhancedStream, {
-      cleanup,
-      resume,
-      audioSourceTracks: audioTracks,
-    });
-
-    return enhancedStream;
-  } catch {
-    await closeAudioContext();
-    return rawStream;
-  }
+  return rawStream;
 }
 
 function isPermissionDenied(error) {
@@ -352,7 +256,11 @@ export async function createOffer(pc) {
 
   const offer = await pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: true });
   if (isClosed(pc)) throw new Error("Peer connection closed before offer was applied.");
-  await pc.setLocalDescription(offer);
+
+  const modifiedSdp = optimizeAudioSdp(offer.sdp);
+  const modifiedOffer = new RTCSessionDescription({ type: offer.type, sdp: modifiedSdp });
+
+  await pc.setLocalDescription(modifiedOffer);
   return pc.localDescription;
 }
 
@@ -372,12 +280,16 @@ export async function createAnswerForOffer(pc, offer) {
     throw new Error("Peer connection is not ready for a new offer.");
   }
 
-  await pc.setRemoteDescription(new RTCSessionDescription(offer));
+  const modifiedRemoteSdp = optimizeAudioSdp(offer.sdp);
+  await pc.setRemoteDescription(new RTCSessionDescription({ type: offer.type, sdp: modifiedRemoteSdp }));
   await flushQueuedIceCandidates(pc);
   if (isClosed(pc)) throw new Error("Peer connection closed before answer was created.");
 
   const answer = await pc.createAnswer();
-  await pc.setLocalDescription(answer);
+  const modifiedAnswerSdp = optimizeAudioSdp(answer.sdp);
+  const modifiedAnswer = new RTCSessionDescription({ type: answer.type, sdp: modifiedAnswerSdp });
+
+  await pc.setLocalDescription(modifiedAnswer);
   return pc.localDescription;
 }
 
@@ -385,7 +297,8 @@ export async function applyRemoteAnswer(pc, answer) {
   if (isClosed(pc) || pc.signalingState !== "have-local-offer") return;
   if (!answer || answer.type !== "answer") throw new Error("Invalid WebRTC answer.");
 
-  await pc.setRemoteDescription(new RTCSessionDescription(answer));
+  const modifiedAnswerSdp = optimizeAudioSdp(answer.sdp);
+  await pc.setRemoteDescription(new RTCSessionDescription({ type: answer.type, sdp: modifiedAnswerSdp }));
   await flushQueuedIceCandidates(pc);
 }
 
@@ -394,8 +307,9 @@ export async function addRemoteIceCandidate(pc, candidate) {
 
   const iceCandidate = candidate instanceof RTCIceCandidate ? candidate : new RTCIceCandidate(candidate);
   if (!pc.remoteDescription) {
-    if (queuedIceCandidates.length >= MAX_QUEUED_ICE_CANDIDATES) queuedIceCandidates.shift();
-    queuedIceCandidates.push(iceCandidate);
+    if (!pc._queuedCandidates) pc._queuedCandidates = [];
+    if (pc._queuedCandidates.length >= MAX_QUEUED_ICE_CANDIDATES) pc._queuedCandidates.shift();
+    pc._queuedCandidates.push(iceCandidate);
     return;
   }
 
@@ -404,10 +318,10 @@ export async function addRemoteIceCandidate(pc, candidate) {
 }
 
 export async function flushQueuedIceCandidates(pc) {
-  if (isClosed(pc) || !pc.remoteDescription || queuedIceCandidates.length === 0) return;
+  if (isClosed(pc) || !pc.remoteDescription || !pc._queuedCandidates || pc._queuedCandidates.length === 0) return;
 
-  const candidates = [...queuedIceCandidates];
-  queuedIceCandidates = [];
+  const candidates = [...pc._queuedCandidates];
+  pc._queuedCandidates = [];
 
   for (const candidate of candidates) {
     if (isClosed(pc)) return;
@@ -418,3 +332,93 @@ export async function flushQueuedIceCandidates(pc) {
     }
   }
 }
+
+export function stopLocalMedia(stream) {
+  if (!stream) return;
+
+  if (typeof stream[STREAM_CLEANUP_KEY] === "function") {
+    try {
+      stream[STREAM_CLEANUP_KEY]();
+    } finally {
+      stream[STREAM_CLEANUP_KEY] = null;
+      stream[AUDIO_RESUME_KEY] = null;
+      stream[AUDIO_SOURCE_TRACKS_KEY] = [];
+    }
+  }
+
+  stream.getTracks().forEach((track) => track.stop());
+}
+
+export function detachRemoteMedia(audioElement, videoElement) {
+  if (audioElement) {
+    try {
+      audioElement.pause();
+    } catch {
+      // Ignore pause errors
+    }
+    audioElement.srcObject = null;
+  }
+  if (videoElement) {
+    videoElement.srcObject = null;
+  }
+}
+
+export async function getPeerConnectionStats(pc, localStream = null, remoteStream = null) {
+  if (isClosed(pc)) return null;
+
+  try {
+    const stats = await pc.getStats();
+    const localAudioTrack = localStream?.getAudioTracks?.()[0] || null;
+    const remoteAudioTrack = remoteStream?.getAudioTracks?.()[0] || null;
+    const audioSender = pc.getSenders?.().find((s) => s.track?.kind === "audio") || null;
+
+    const result = {
+      localMedia: {
+        localStreamId: localStream?.id || null,
+        localAudioTrackId: localAudioTrack?.id || null,
+        outboundSenderTrackId: audioSender?.track?.id || null,
+        trackVerified: Boolean(localAudioTrack && audioSender && localAudioTrack.id === audioSender.track?.id),
+      },
+      remoteMedia: {
+        remoteStreamId: remoteStream?.id || null,
+        remoteAudioTrackId: remoteAudioTrack?.id || null,
+      },
+      inboundAudio: { packetsReceived: 0, packetsLost: 0, jitter: 0, audioLevel: 0, concealedSamples: 0 },
+      outboundAudio: { packetsSent: 0, audioLevel: 0 },
+      connection: { rtt: 0, candidateType: "unknown" },
+    };
+
+    stats.forEach((report) => {
+      if (report.type === "inbound-rtp" && report.kind === "audio") {
+        result.inboundAudio.packetsReceived = report.packetsReceived || 0;
+        result.inboundAudio.packetsLost = report.packetsLost || 0;
+        result.inboundAudio.jitter = report.jitter || 0;
+        result.inboundAudio.audioLevel = report.audioLevel || 0;
+        result.inboundAudio.concealedSamples = report.concealedSamples || 0;
+      } else if (report.type === "outbound-rtp" && report.kind === "audio") {
+        result.outboundAudio.packetsSent = report.packetsSent || 0;
+      } else if (report.type === "media-source" && report.kind === "audio") {
+        result.outboundAudio.audioLevel = report.audioLevel || 0;
+      } else if (report.type === "candidate-pair" && report.state === "succeeded") {
+        result.connection.rtt = report.currentRoundTripTime ? Math.round(report.currentRoundTripTime * 1000) : 0;
+      }
+    });
+
+    return result;
+  } catch {
+    return null;
+  }
+}
+
+export function restartPeerIce(pc) {
+  if (isClosed(pc) || typeof pc.restartIce !== "function") return false;
+  try {
+    pc.restartIce();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+
+

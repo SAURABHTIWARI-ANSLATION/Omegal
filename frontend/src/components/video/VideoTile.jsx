@@ -1,14 +1,34 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Camera, Volume2 } from "lucide-react";
 import { cn } from "../../utils/helpers.js";
 import chatUiStudio from "../../assets/studio/chat-ui-studio.jpg";
 
+let globalAudioUnlockAttached = false;
+
+function attachGlobalAudioUnlock(callback) {
+  if (globalAudioUnlockAttached) return;
+  globalAudioUnlockAttached = true;
+
+  const unlock = () => {
+    globalAudioUnlockAttached = false;
+    document.removeEventListener("pointerdown", unlock, { capture: true });
+    document.removeEventListener("keydown", unlock);
+    document.removeEventListener("touchstart", unlock);
+    callback();
+  };
+
+  document.addEventListener("pointerdown", unlock, { capture: true });
+  document.addEventListener("keydown", unlock);
+  document.addEventListener("touchstart", unlock);
+}
+
 export default function VideoTile({ stream, label, muted = false, local = false, fit = "cover", className }) {
   const videoRef = useRef(null);
+  const audioRef = useRef(null);
   const [audioUnlockNeeded, setAudioUnlockNeeded] = useState(false);
   const [playbackBlocked, setPlaybackBlocked] = useState(false);
 
-  const playVideo = async ({ allowMutedFallback = true } = {}) => {
+  const playVideo = useCallback(async ({ allowMutedFallback = true } = {}) => {
     const video = videoRef.current;
     if (!video || !stream) return false;
 
@@ -32,50 +52,67 @@ export default function VideoTile({ stream, label, muted = false, local = false,
       setPlaybackBlocked(true);
       return false;
     }
-  };
+  }, [muted, stream]);
 
   useEffect(() => {
     const video = videoRef.current;
-    if (!video) return undefined;
+    const audio = audioRef.current;
 
-    setAudioUnlockNeeded(false);
-    setPlaybackBlocked(false);
-
-    video.srcObject = stream || null;
-    video.muted = Boolean(muted);
-    video.playsInline = true;
-    video.setAttribute("playsinline", "");
-    video.setAttribute("webkit-playsinline", "");
-
-    if (!stream) return undefined;
-
-    const handleReady = () => {
-      void playVideo({ allowMutedFallback: true });
-    };
-
-    video.addEventListener("loadedmetadata", handleReady);
-    video.addEventListener("canplay", handleReady);
-    void playVideo({ allowMutedFallback: true });
-
-    return () => {
-      video.removeEventListener("loadedmetadata", handleReady);
-      video.removeEventListener("canplay", handleReady);
-      video.srcObject = null;
-    };
-  }, [muted, stream]);
-
-  const unlockPlayback = async () => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    if (audioUnlockNeeded) {
-      video.muted = false;
-      video.volume = 1;
+    if (video) {
+      if (video.srcObject !== (stream || null)) {
+        video.srcObject = stream || null;
+      }
     }
 
-    const didPlay = await playVideo({ allowMutedFallback: false });
-    if (didPlay) setAudioUnlockNeeded(false);
-  };
+    if (audio && !local && stream) {
+      if (audio.srcObject !== stream) {
+        audio.srcObject = stream;
+      }
+    }
+
+    if (stream) {
+      void playVideo();
+      if (audio && !local && !muted) {
+        audio.play().catch(() => {});
+      }
+    } else {
+      setAudioUnlockNeeded(false);
+      setPlaybackBlocked(false);
+    }
+  }, [stream, playVideo, local, muted]);
+
+  const unlockPlayback = useCallback(async () => {
+    const video = videoRef.current;
+    const audio = audioRef.current;
+
+    if (video) {
+      if (audioUnlockNeeded) {
+        video.muted = false;
+        video.volume = 1;
+      }
+      const didPlay = await playVideo({ allowMutedFallback: false });
+      if (didPlay) setAudioUnlockNeeded(false);
+    }
+
+    if (audio && !local) {
+      audio.muted = false;
+      audio.volume = 1;
+      audio.play().catch(() => {});
+    }
+  }, [audioUnlockNeeded, playVideo, local]);
+
+  const unlockRef = useRef(unlockPlayback);
+  unlockRef.current = unlockPlayback;
+
+  useEffect(() => {
+    if (!stream || muted) return undefined;
+
+    attachGlobalAudioUnlock(() => {
+      void unlockRef.current();
+    });
+
+    return undefined;
+  }, [muted, stream]);
 
   const shouldShowPlaybackPrompt = Boolean(stream && (audioUnlockNeeded || playbackBlocked));
 
@@ -84,13 +121,16 @@ export default function VideoTile({ stream, label, muted = false, local = false,
       className={cn("video-tile group relative isolate min-h-0 overflow-hidden rounded-[1.6rem] border border-white/90 bg-[#eef1f7] shadow-[0_4px_20px_rgba(0,0,0,0.08)] backdrop-blur-2xl", className)}
       onClick={shouldShowPlaybackPrompt ? unlockPlayback : undefined}
     >
+      {!local && stream ? (
+        <audio ref={audioRef} autoPlay playsInline muted={false} style={{ display: "none" }} />
+      ) : null}
       {stream ? (
         <video
           ref={videoRef}
           autoPlay
           playsInline
           webkit-playsinline="true"
-          muted={muted || audioUnlockNeeded}
+          muted={true}
           controls={false}
           preload="auto"
           className={cn("h-full w-full bg-[#eef1f7] object-center", fit === "contain" ? "object-contain" : "object-cover")}

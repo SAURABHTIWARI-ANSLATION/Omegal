@@ -10,7 +10,9 @@ import {
   createManagedPeerConnection,
   createOffer,
   getActivePeerConnection,
+  getPeerConnectionStats,
   requestMediaStream,
+  restartPeerIce,
   setManagedAudioEnabled,
 } from "../services/webrtc.js";
 import { useAppStore } from "../store/appStore.js";
@@ -20,8 +22,32 @@ export function useWebRTC({ listen = false } = {}) {
   const activeRoomRef = useRef(null);
   const remoteStreamRef = useRef(null);
   const startingRef = useRef(false);
+  const connectionPromiseRef = useRef(null);
   const connectionWatchdogRef = useRef(null);
+  const telemetryIntervalRef = useRef(null);
   const lastFailureToastRef = useRef(0);
+
+  const stopTelemetry = useCallback(() => {
+    if (telemetryIntervalRef.current) {
+      clearInterval(telemetryIntervalRef.current);
+      telemetryIntervalRef.current = null;
+    }
+  }, []);
+
+  const startTelemetry = useCallback((pc, sessionKey) => {
+    stopTelemetry();
+    telemetryIntervalRef.current = setInterval(async () => {
+      if (!pc || pc.connectionState !== "connected") {
+        stopTelemetry();
+        return;
+      }
+      const store = useAppStore.getState();
+      const stats = await getPeerConnectionStats(pc, store.localStream, store.remoteStream);
+      if (stats) {
+        console.log(`[WEBRTC-TELEMETRY][session=${sessionKey}]`, stats);
+      }
+    }, 3000);
+  }, [stopTelemetry]);
 
   const clearConnectionWatchdog = useCallback(() => {
     if (!connectionWatchdogRef.current) return;
@@ -36,7 +62,6 @@ export function useWebRTC({ listen = false } = {}) {
 
   const publishRemoteTrack = useCallback((event) => {
     const remoteStream = remoteStreamRef.current || new MediaStream();
-    remoteStreamRef.current = remoteStream;
 
     const incomingTracks = event.streams?.[0]?.getTracks?.() || [];
     [...incomingTracks, event.track].filter(Boolean).forEach((track) => {
@@ -44,12 +69,14 @@ export function useWebRTC({ listen = false } = {}) {
       if (!alreadyAdded) remoteStream.addTrack(track);
     });
 
-    useAppStore.getState().setRemoteStream(new MediaStream(remoteStream.getTracks()));
+    const updatedStream = new MediaStream(remoteStream.getTracks());
+    remoteStreamRef.current = updatedStream;
+    useAppStore.getState().setRemoteStream(updatedStream);
   }, []);
 
   const getSessionKey = useCallback((state) => {
     if (!state.roomId || !state.partnerId) return null;
-    return `${state.roomId}:${state.partnerId}:${state.sessionVersion || 0}`;
+    return `${state.roomId}:${state.partnerId}:${state.sessionVersion || 0}:${state.sessionGeneration || 1}`;
   }, []);
 
   const emitSignal = useCallback((event, data, sessionKey = null) => {
@@ -61,6 +88,7 @@ export function useWebRTC({ listen = false } = {}) {
       roomId: state.roomId,
       partnerId: state.partnerId,
       sessionVersion: state.sessionVersion,
+      sessionGeneration: state.sessionGeneration,
       ...data,
     });
   }, [getSessionKey]);
@@ -92,6 +120,7 @@ export function useWebRTC({ listen = false } = {}) {
 
         if (!failed && !stillDisconnected) return;
 
+        stopTelemetry();
         closePeerConnection();
         resetRemoteStream();
         store.setRtcConnectionState(failed ? "failed" : "disconnected");
@@ -102,57 +131,108 @@ export function useWebRTC({ listen = false } = {}) {
         );
       }, delayMs);
     },
-    [addPeerFailureToast, clearConnectionWatchdog, resetRemoteStream]
+    [addPeerFailureToast, clearConnectionWatchdog, resetRemoteStream, stopTelemetry]
   );
 
   const createConnection = useCallback(async () => {
-    const existing = getActivePeerConnection();
-    if (
-      existing &&
-      existing.signalingState !== "closed" &&
-      existing.connectionState !== "closed" &&
-      existing.connectionState !== "failed"
-    ) {
-      return existing;
+    const build = async () => {
+      const sessionKey = getSessionKey(useAppStore.getState());
+      const pc = createManagedPeerConnection({
+        onIceCandidate: (candidate) => emitSignal(EVENTS.SEND_ICE_CANDIDATE, { candidate }, sessionKey),
+        onTrack: publishRemoteTrack,
+        onConnectionStateChange: (state) => {
+          const store = useAppStore.getState();
+          store.setRtcConnectionState(state);
+          if (state === "connected") {
+            clearConnectionWatchdog();
+            startTelemetry(pc, sessionKey);
+          }
+          if (state === "disconnected") {
+            scheduleConnectionWatchdog("disconnected");
+            restartPeerIce(pc);
+          }
+          if (state === "failed") {
+            scheduleConnectionWatchdog("failed");
+          }
+        },
+        onIceConnectionStateChange: (state) => {
+          const store = useAppStore.getState();
+          store.setIceConnectionState(state);
+          if (state === "connected" || state === "completed") {
+            clearConnectionWatchdog();
+            startTelemetry(pc, sessionKey);
+          }
+          if (state === "disconnected") {
+            scheduleConnectionWatchdog("disconnected");
+            restartPeerIce(pc);
+          }
+          if (state === "failed") {
+            scheduleConnectionWatchdog("failed");
+          }
+        },
+      });
+
+      const store = useAppStore.getState();
+      let stream = store.localStream;
+      if (!stream) {
+        store.setMediaPermission("requesting");
+        stream = await requestMediaStream();
+        useAppStore.getState().setLocalStream(stream);
+        useAppStore.getState().setMediaPermission("granted");
+      }
+
+      if (pc.signalingState === "closed" || pc.connectionState === "closed") {
+        throw new Error("Peer connection closed while setting up media.");
+      }
+
+      addLocalTracks(pc, stream);
+      setManagedAudioEnabled(stream, store.audioEnabled);
+
+      const localAudioTrack = stream.getAudioTracks()[0];
+      const audioSender = pc.getSenders().find((s) => s.track?.kind === "audio");
+      if (localAudioTrack && audioSender) {
+        if (localAudioTrack.id !== audioSender.track?.id) {
+          console.warn("[WEBRTC-DIAGNOSTIC] Track mismatch! localAudioTrack:", localAudioTrack.id, "senderTrack:", audioSender.track?.id);
+        } else {
+          console.log("[WEBRTC-DIAGNOSTIC] Outbound audio track verified:", localAudioTrack.id, localAudioTrack.label);
+        }
+      }
+
+      useAppStore.getState().setRtcConnectionState("connecting");
+      return pc;
+    };
+
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const existing = getActivePeerConnection();
+      if (
+        existing &&
+        existing.signalingState !== "closed" &&
+        existing.connectionState !== "closed" &&
+        existing.connectionState !== "failed"
+      ) {
+        return existing;
+      }
+
+      if (!connectionPromiseRef.current) {
+        connectionPromiseRef.current = build();
+      }
+
+      try {
+        const pc = await connectionPromiseRef.current;
+        if (
+          pc &&
+          pc.signalingState !== "closed" &&
+          pc.connectionState !== "closed" &&
+          pc.connectionState !== "failed"
+        ) {
+          return pc;
+        }
+      } finally {
+        connectionPromiseRef.current = null;
+      }
     }
 
-    const sessionKey = getSessionKey(useAppStore.getState());
-
-    const pc = createManagedPeerConnection({
-      onIceCandidate: (candidate) => emitSignal(EVENTS.SEND_ICE_CANDIDATE, { candidate }, sessionKey),
-      onTrack: publishRemoteTrack,
-      onConnectionStateChange: (state) => {
-        const store = useAppStore.getState();
-        store.setRtcConnectionState(state);
-        if (state === "connected") clearConnectionWatchdog();
-        if (state === "disconnected") scheduleConnectionWatchdog("disconnected");
-        if (state === "failed") {
-          scheduleConnectionWatchdog("failed");
-        }
-      },
-      onIceConnectionStateChange: (state) => {
-        const store = useAppStore.getState();
-        store.setIceConnectionState(state);
-        if (state === "connected" || state === "completed") clearConnectionWatchdog();
-        if (state === "disconnected") scheduleConnectionWatchdog("disconnected");
-        if (state === "failed") {
-          scheduleConnectionWatchdog("failed");
-        }
-      },
-    });
-
-    const store = useAppStore.getState();
-    let stream = store.localStream;
-    if (!stream) {
-      store.setMediaPermission("requesting");
-      stream = await requestMediaStream();
-      useAppStore.getState().setLocalStream(stream);
-      useAppStore.getState().setMediaPermission("granted");
-    }
-
-    addLocalTracks(pc, stream);
-    useAppStore.getState().setRtcConnectionState("connecting");
-    return pc;
+    throw new Error("Unable to establish a peer connection.");
   }, [clearConnectionWatchdog, emitSignal, getSessionKey, publishRemoteTrack, scheduleConnectionWatchdog]);
 
   const startSession = useCallback(async () => {
@@ -177,13 +257,15 @@ export function useWebRTC({ listen = false } = {}) {
         emitSignal(EVENTS.SEND_OFFER, { offer }, sessionKey);
       }
     } catch (error) {
-      const message = getMediaErrorMessage(error);
       const store = useAppStore.getState();
+      closePeerConnection();
+      if (getSessionKey(store) !== sessionKey) return;
+
+      const message = getMediaErrorMessage(error);
       activeRoomRef.current = null;
       store.setMediaPermission("denied");
       store.setLastError(message);
       store.addToast({ title: "Video setup failed", description: message, variant: "error" });
-      closePeerConnection();
     } finally {
       startingRef.current = false;
     }
@@ -252,6 +334,7 @@ export function useWebRTC({ listen = false } = {}) {
       if (state.chatMode !== CHAT_MODES.VIDEO || state.queueStatus !== SESSION_STATUS.MATCHED) return false;
       if (payload.roomId && payload.roomId !== state.roomId) return false;
       if (payload.sessionVersion !== undefined && Number(payload.sessionVersion) !== Number(state.sessionVersion)) return false;
+      if (payload.sessionGeneration !== undefined && Number(payload.sessionGeneration) !== Number(state.sessionGeneration)) return false;
       if (payload.senderId && payload.senderId !== state.partnerId) return false;
       return true;
     };
@@ -273,6 +356,7 @@ export function useWebRTC({ listen = false } = {}) {
         const answer = await createAnswerForOffer(pc, offer);
         emitSignal(EVENTS.SEND_ANSWER, { answer }, currentSessionKey);
       } catch (error) {
+        if (!isCurrentSignal(payload)) return;
         const message = error.message || "Unable to handle WebRTC offer.";
         useAppStore.getState().addToast({ title: "Offer failed", description: message, variant: "error" });
       }
@@ -313,11 +397,12 @@ export function useWebRTC({ listen = false } = {}) {
       socket.off(EVENTS.RECEIVE_OFFER, handleReceiveOffer);
       socket.off(EVENTS.RECEIVE_ANSWER, handleReceiveAnswer);
       socket.off(EVENTS.RECEIVE_ICE_CANDIDATE, handleReceiveIce);
+      stopTelemetry();
       clearConnectionWatchdog();
       closePeerConnection();
       resetRemoteStream();
     };
-  }, [clearConnectionWatchdog, listen, createConnection, emitSignal, getSessionKey, resetRemoteStream]);
+  }, [clearConnectionWatchdog, listen, createConnection, emitSignal, getSessionKey, resetRemoteStream, stopTelemetry]);
 
   return { toggleAudio, toggleVideo, stopLocalMedia };
 }

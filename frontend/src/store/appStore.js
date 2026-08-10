@@ -8,6 +8,7 @@ const initialSession = {
   roomId: null,
   partnerId: null,
   sessionVersion: 0,
+  sessionGeneration: 1,
   partnerDisconnected: false,
   isSwitchingPartner: false,
   waitingMessage: null,
@@ -46,6 +47,7 @@ export const useAppStore = create((set, get) => ({
       roomId: options.preserveRoom ? state.roomId : null,
       partnerId: null,
       sessionVersion: Number(options.sessionVersion ?? (options.preserveRoom ? state.sessionVersion : 0)) || 0,
+      sessionGeneration: state.sessionGeneration + 1,
       partnerDisconnected: false,
       isSwitchingPartner: Boolean(options.switchingPartner),
       waitingMessage: options.message || null,
@@ -57,29 +59,31 @@ export const useAppStore = create((set, get) => ({
       messages: [],
     })),
   setMatched: ({ roomId, partnerId, sessionVersion }) =>
-    set({
+    set((state) => ({
       roomId,
       partnerId,
       sessionVersion: Number(sessionVersion) || 1,
+      sessionGeneration: state.sessionGeneration + 1,
       queueStatus: SESSION_STATUS.MATCHED,
       partnerDisconnected: false,
       isSwitchingPartner: false,
       waitingMessage: null,
       queueSize: 0,
       lastError: null,
-    }),
+    })),
   setPartnerDisconnected: () =>
-    set({
+    set((state) => ({
       queueStatus: SESSION_STATUS.PARTNER_DISCONNECTED,
       partnerDisconnected: true,
       partnerId: null,
+      sessionGeneration: state.sessionGeneration + 1,
       isSwitchingPartner: false,
       waitingMessage: null,
       remoteStream: null,
       rtcConnectionState: "closed",
       iceConnectionState: "closed",
-    }),
-  resetSession: () => set({ ...initialSession, messages: [], remoteStream: null, lastError: null }),
+    })),
+  resetSession: () => set((state) => ({ ...initialSession, sessionGeneration: state.sessionGeneration + 1, messages: [], remoteStream: null, lastError: null })),
   setLocalStream: (localStream) => set({ localStream, mediaPermission: localStream ? "granted" : get().mediaPermission }),
   setRemoteStream: (remoteStream) => set({ remoteStream }),
   setMediaEnabled: ({ audioEnabled, videoEnabled }) =>

@@ -20,8 +20,10 @@ export function useSocket() {
 
     const handleDisconnect = (reason) => {
       const state = useAppStore.getState();
+      const rtcConnected = state.rtcConnectionState === "connected" || state.iceConnectionState === "connected";
       const shouldResetRoom =
-        state.queueStatus === SESSION_STATUS.MATCHED || state.queueStatus === SESSION_STATUS.PARTNER_DISCONNECTED;
+        (state.queueStatus === SESSION_STATUS.MATCHED && !rtcConnected) ||
+        state.queueStatus === SESSION_STATUS.PARTNER_DISCONNECTED;
 
       if (shouldResetRoom) {
         const chatMode = state.chatMode;
@@ -36,8 +38,10 @@ export function useSocket() {
 
       state.setSocketStatus(SOCKET_STATUS.DISCONNECTED, reason);
       state.addToast({
-        title: "Connection lost",
-        description: "Trying to reconnect to the chat server.",
+        title: "Signaling connection lost",
+        description: rtcConnected
+          ? "Reconnecting to chat server. Active audio call continues."
+          : "Trying to reconnect to the chat server.",
         variant: "warning",
       });
     };

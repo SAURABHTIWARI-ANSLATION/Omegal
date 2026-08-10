@@ -74,7 +74,6 @@ export function useChat({ listen = false } = {}) {
         return;
       }
       closePeerConnection();
-      stopStream(state.remoteStream);
       state.setRemoteStream(null);
       state.setRtcConnectionState("new");
       state.setIceConnectionState("new");
@@ -91,7 +90,6 @@ export function useChat({ listen = false } = {}) {
         return;
       }
       closePeerConnection();
-      stopStream(state.remoteStream);
       state.setPartnerDisconnected();
       state.addSystemMessage("Partner disconnected.");
       state.addToast({ title: "Partner disconnected", description: "You can search for another stranger now.", variant: "warning" });

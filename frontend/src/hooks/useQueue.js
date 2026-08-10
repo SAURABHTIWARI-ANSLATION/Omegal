@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef } from "react";
 import { CHAT_MODES, EVENTS, SESSION_STATUS, SOCKET_STATUS } from "../utils/constants.js";
 import { socketService } from "../services/socket.js";
-import { closePeerConnection, requestMediaStream } from "../services/webrtc.js";
+import { closePeerConnection, requestMediaStream, stopLocalMedia } from "../services/webrtc.js";
 import { useAppStore } from "../store/appStore.js";
-import { getMediaErrorMessage, normalizeMatchPayload, stopStream } from "../utils/helpers.js";
+import { getMediaErrorMessage, normalizeMatchPayload } from "../utils/helpers.js";
 
 export function useQueue({ listen = false, onMatched } = {}) {
   const lastMatchRef = useRef(null);
@@ -42,7 +42,7 @@ export function useQueue({ listen = false, onMatched } = {}) {
         const ready = await prepareVideo();
         if (!ready) return false;
       } else if (state.localStream) {
-        stopStream(state.localStream);
+        stopLocalMedia(state.localStream);
         state.setLocalStream(null);
         state.setMediaEnabled({ audioEnabled: true, videoEnabled: true });
       }
@@ -69,7 +69,6 @@ export function useQueue({ listen = false, onMatched } = {}) {
     }
 
     closePeerConnection();
-    stopStream(state.remoteStream);
     state.setRemoteStream(null);
     state.setSearching(state.chatMode, {
       preserveRoom: true,
@@ -113,7 +112,6 @@ export function useQueue({ listen = false, onMatched } = {}) {
     const resetRemotePeer = () => {
       const state = useAppStore.getState();
       closePeerConnection();
-      stopStream(state.remoteStream);
       state.setRemoteStream(null);
       state.setRtcConnectionState("new");
       state.setIceConnectionState("new");
