@@ -71,15 +71,40 @@ export default function VideoTile({ stream, label, muted = false, local = false,
     }
 
     if (stream) {
+      // Attempt immediate play. On some browsers (especially Safari and
+      // Android WebView) the video element is not yet ready when srcObject
+      // is first assigned, so play() will be rejected. The loadedmetadata
+      // and canplay listeners below serve as reliable fallback triggers.
       void playVideo();
       if (audio && !local && !muted) {
         audio.play().catch(() => {});
       }
+
+      // Fallback: retry play() when the element has decoded enough data.
+      // This covers Safari's stricter media pipeline initialization.
+      const handleLoadedMetadata = () => {
+        void playVideo();
+      };
+      const handleCanPlay = () => {
+        const v = videoRef.current;
+        if (v && v.paused) void playVideo();
+      };
+
+      video?.addEventListener("loadedmetadata", handleLoadedMetadata);
+      video?.addEventListener("canplay", handleCanPlay);
+
+      return () => {
+        video?.removeEventListener("loadedmetadata", handleLoadedMetadata);
+        video?.removeEventListener("canplay", handleCanPlay);
+      };
     } else {
       setAudioUnlockNeeded(false);
       setPlaybackBlocked(false);
     }
+
+    return undefined;
   }, [stream, playVideo, local, muted]);
+
 
   const unlockPlayback = useCallback(async () => {
     const video = videoRef.current;

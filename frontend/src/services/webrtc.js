@@ -76,12 +76,11 @@ export function createManagedPeerConnection(handlers = {}) {
   pc._queuedCandidates = [];
   peerConnection = pc;
 
-  try {
-    pc.addTransceiver("audio", { direction: "sendrecv" });
-    pc.addTransceiver("video", { direction: "sendrecv" });
-  } catch {
-    // Best-effort transceiver initialization
-  }
+  // NOTE: Do NOT pre-seed transceivers with addTransceiver() here.
+  // addTrack() in addLocalTracks() will create correct sendrecv transceivers
+  // automatically. Pre-seeding with empty transceivers causes a
+  // direction negotiation mismatch (sendrecv vs recvonly) on the answerer
+  // side in Safari and certain Chrome versions, resulting in one-way video.
 
   pc.onicecandidate = (event) => {
     if (isActive(pc) && event.candidate) handlers.onIceCandidate?.(event.candidate);
@@ -369,22 +368,43 @@ export async function getPeerConnectionStats(pc, localStream = null, remoteStrea
   try {
     const stats = await pc.getStats();
     const localAudioTrack = localStream?.getAudioTracks?.()[0] || null;
+    const localVideoTrack = localStream?.getVideoTracks?.()[0] || null;
     const remoteAudioTrack = remoteStream?.getAudioTracks?.()[0] || null;
+    const remoteVideoTrack = remoteStream?.getVideoTracks?.()[0] || null;
     const audioSender = pc.getSenders?.().find((s) => s.track?.kind === "audio") || null;
+    const videoSender = pc.getSenders?.().find((s) => s.track?.kind === "video") || null;
 
     const result = {
       localMedia: {
         localStreamId: localStream?.id || null,
         localAudioTrackId: localAudioTrack?.id || null,
-        outboundSenderTrackId: audioSender?.track?.id || null,
-        trackVerified: Boolean(localAudioTrack && audioSender && localAudioTrack.id === audioSender.track?.id),
+        localVideoTrackId: localVideoTrack?.id || null,
+        videoSenderTrackId: videoSender?.track?.id || null,
+        audioSenderTrackId: audioSender?.track?.id || null,
+        videoTrackVerified: Boolean(localVideoTrack && videoSender && localVideoTrack.id === videoSender.track?.id),
+        audioTrackVerified: Boolean(localAudioTrack && audioSender && localAudioTrack.id === audioSender.track?.id),
+        videoTrackReadyState: localVideoTrack?.readyState || null,
+        videoTrackEnabled: localVideoTrack?.enabled ?? null,
       },
       remoteMedia: {
         remoteStreamId: remoteStream?.id || null,
         remoteAudioTrackId: remoteAudioTrack?.id || null,
+        remoteVideoTrackId: remoteVideoTrack?.id || null,
+        remoteVideoTrackReadyState: remoteVideoTrack?.readyState || null,
+        remoteVideoTrackMuted: remoteVideoTrack?.muted ?? null,
       },
+      transceivers: pc.getTransceivers?.().map((t) => ({
+        mid: t.mid,
+        direction: t.direction,
+        currentDirection: t.currentDirection,
+        senderTrackKind: t.sender?.track?.kind || null,
+        receiverTrackKind: t.receiver?.track?.kind || null,
+        stopped: t.stopped,
+      })) || [],
       inboundAudio: { packetsReceived: 0, packetsLost: 0, jitter: 0, audioLevel: 0, concealedSamples: 0 },
       outboundAudio: { packetsSent: 0, audioLevel: 0 },
+      inboundVideo: { packetsReceived: 0, packetsLost: 0, framesReceived: 0, framesDecoded: 0, framesDropped: 0, frameWidth: 0, frameHeight: 0, framesPerSecond: 0, jitter: 0 },
+      outboundVideo: { packetsSent: 0, bytesSent: 0, framesEncoded: 0, framesSent: 0, frameWidth: 0, frameHeight: 0, framesPerSecond: 0 },
       connection: { rtt: 0, candidateType: "unknown" },
     };
 
@@ -399,6 +419,24 @@ export async function getPeerConnectionStats(pc, localStream = null, remoteStrea
         result.outboundAudio.packetsSent = report.packetsSent || 0;
       } else if (report.type === "media-source" && report.kind === "audio") {
         result.outboundAudio.audioLevel = report.audioLevel || 0;
+      } else if (report.type === "inbound-rtp" && report.kind === "video") {
+        result.inboundVideo.packetsReceived = report.packetsReceived || 0;
+        result.inboundVideo.packetsLost = report.packetsLost || 0;
+        result.inboundVideo.framesReceived = report.framesReceived || 0;
+        result.inboundVideo.framesDecoded = report.framesDecoded || 0;
+        result.inboundVideo.framesDropped = report.framesDropped || 0;
+        result.inboundVideo.frameWidth = report.frameWidth || 0;
+        result.inboundVideo.frameHeight = report.frameHeight || 0;
+        result.inboundVideo.framesPerSecond = report.framesPerSecond || 0;
+        result.inboundVideo.jitter = report.jitter || 0;
+      } else if (report.type === "outbound-rtp" && report.kind === "video") {
+        result.outboundVideo.packetsSent = report.packetsSent || 0;
+        result.outboundVideo.bytesSent = report.bytesSent || 0;
+        result.outboundVideo.framesEncoded = report.framesEncoded || 0;
+        result.outboundVideo.framesSent = report.framesSent || 0;
+        result.outboundVideo.frameWidth = report.frameWidth || 0;
+        result.outboundVideo.frameHeight = report.frameHeight || 0;
+        result.outboundVideo.framesPerSecond = report.framesPerSecond || 0;
       } else if (report.type === "candidate-pair" && report.state === "succeeded") {
         result.connection.rtt = report.currentRoundTripTime ? Math.round(report.currentRoundTripTime * 1000) : 0;
       }

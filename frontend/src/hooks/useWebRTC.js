@@ -60,19 +60,52 @@ export function useWebRTC({ listen = false } = {}) {
     useAppStore.getState().setRemoteStream(null);
   }, []);
 
-  const publishRemoteTrack = useCallback((event) => {
-    const remoteStream = remoteStreamRef.current || new MediaStream();
+  const publishRemoteTrack = useCallback((event, sessionKey) => {
+    // Guard: reject tracks from previous sessions.
+    if (sessionKey && getSessionKey(useAppStore.getState()) !== sessionKey) {
+      console.warn("[WEBRTC-VIDEO] ontrack discarded — session mismatch", {
+        incoming: sessionKey,
+        current: getSessionKey(useAppStore.getState()),
+      });
+      return;
+    }
 
-    const incomingTracks = event.streams?.[0]?.getTracks?.() || [];
-    [...incomingTracks, event.track].filter(Boolean).forEach((track) => {
-      const alreadyAdded = remoteStream.getTracks().some((item) => item.id === track.id);
-      if (!alreadyAdded) remoteStream.addTrack(track);
+    const track = event.track;
+    if (!track) return;
+
+    // Reuse the existing MediaStream — do NOT create a clone.
+    // Cloning on every ontrack call causes React to set a new srcObject reference
+    // which triggers another play() call; on Safari/mobile the second play() can
+    // be blocked by autoplay policy, silently leaving video frozen on one side.
+    let remoteStream = remoteStreamRef.current;
+    if (!remoteStream) {
+      remoteStream = new MediaStream();
+      remoteStreamRef.current = remoteStream;
+    }
+
+    // Add the primary track from the event if not already present.
+    if (!remoteStream.getTracks().some((t) => t.id === track.id)) {
+      remoteStream.addTrack(track);
+      console.log("[WEBRTC-VIDEO] Remote track added", { kind: track.kind, id: track.id, readyState: track.readyState, muted: track.muted });
+    }
+
+    // Also add any additional tracks from event.streams[0] (e.g., when browser
+    // bundles audio+video into a single stream and fires ontrack for each).
+    const streamTracks = event.streams?.[0]?.getTracks?.() ?? [];
+    streamTracks.forEach((t) => {
+      if (!remoteStream.getTracks().some((existing) => existing.id === t.id)) {
+        remoteStream.addTrack(t);
+      }
     });
 
-    const updatedStream = new MediaStream(remoteStream.getTracks());
-    remoteStreamRef.current = updatedStream;
-    useAppStore.getState().setRemoteStream(updatedStream);
-  }, []);
+    // Monitor track lifecycle for diagnostics.
+    track.onmute = () => console.log("[WEBRTC-VIDEO] Remote track muted", { kind: track.kind, id: track.id });
+    track.onunmute = () => console.log("[WEBRTC-VIDEO] Remote track unmuted", { kind: track.kind, id: track.id });
+    track.onended = () => console.log("[WEBRTC-VIDEO] Remote track ended", { kind: track.kind, id: track.id });
+
+    // Publish the SAME stream reference — VideoTile's srcObject stays stable.
+    useAppStore.getState().setRemoteStream(remoteStream);
+  }, [getSessionKey]);
 
   const getSessionKey = useCallback((state) => {
     if (!state.roomId || !state.partnerId) return null;
@@ -139,7 +172,8 @@ export function useWebRTC({ listen = false } = {}) {
       const sessionKey = getSessionKey(useAppStore.getState());
       const pc = createManagedPeerConnection({
         onIceCandidate: (candidate) => emitSignal(EVENTS.SEND_ICE_CANDIDATE, { candidate }, sessionKey),
-        onTrack: publishRemoteTrack,
+        // Pass sessionKey into the track handler so stale-session tracks are rejected.
+        onTrack: (event) => publishRemoteTrack(event, sessionKey),
         onConnectionStateChange: (state) => {
           const store = useAppStore.getState();
           store.setRtcConnectionState(state);
@@ -189,14 +223,35 @@ export function useWebRTC({ listen = false } = {}) {
       setManagedAudioEnabled(stream, store.audioEnabled);
 
       const localAudioTrack = stream.getAudioTracks()[0];
+      const localVideoTrack = stream.getVideoTracks()[0];
       const audioSender = pc.getSenders().find((s) => s.track?.kind === "audio");
-      if (localAudioTrack && audioSender) {
-        if (localAudioTrack.id !== audioSender.track?.id) {
-          console.warn("[WEBRTC-DIAGNOSTIC] Track mismatch! localAudioTrack:", localAudioTrack.id, "senderTrack:", audioSender.track?.id);
-        } else {
-          console.log("[WEBRTC-DIAGNOSTIC] Outbound audio track verified:", localAudioTrack.id, localAudioTrack.label);
-        }
+      const videoSender = pc.getSenders().find((s) => s.track?.kind === "video");
+      const transceivers = pc.getTransceivers();
+
+      console.log("[WEBRTC-DIAGNOSTIC] Senders after addLocalTracks:", {
+        senderCount: pc.getSenders().length,
+        audioSenderTrack: audioSender?.track?.id,
+        audioTrackMatch: localAudioTrack?.id === audioSender?.track?.id,
+        videoSenderTrack: videoSender?.track?.id,
+        videoTrackMatch: localVideoTrack?.id === videoSender?.track?.id,
+        videoTrackReadyState: localVideoTrack?.readyState,
+        videoTrackEnabled: localVideoTrack?.enabled,
+        transceivers: transceivers.map((t) => ({
+          mid: t.mid,
+          direction: t.direction,
+          senderKind: t.sender?.track?.kind,
+          receiverKind: t.receiver?.track?.kind,
+        })),
+      });
+
+      if (!videoSender) {
+        console.error("[WEBRTC-DIAGNOSTIC] ❌ No video sender found after addLocalTracks! Video will NOT be sent.");
+      } else if (!videoSender.track) {
+        console.error("[WEBRTC-DIAGNOSTIC] ❌ Video sender exists but track is null!");
+      } else {
+        console.log("[WEBRTC-DIAGNOSTIC] ✅ Video sender verified:", videoSender.track.id, videoSender.track.label);
       }
+
 
       useAppStore.getState().setRtcConnectionState("connecting");
       return pc;
